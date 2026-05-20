@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MaisonMada</title>
+    <script>
+      if (localStorage.getItem('maisonMadaTheme') === 'dark') {
+        document.documentElement.classList.add('dark-mode');
+      }
+    </script>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+    <script src="/socket.io/socket.io.js" defer></script>
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#home">
+        <i data-lucide="home"></i>
+        <span>Maison<span>Mada</span></span>
+      </a>
+
+      <button class="menu-toggle" type="button" id="menuToggle" aria-label="Menu" aria-expanded="false" data-i18n-attr="aria-label:actions.menu">
+        <i data-lucide="menu"></i>
+      </button>
+
+      <nav class="nav">
+        <a href="#home" data-i18n="nav.home">Accueil</a>
+        <a href="#search" data-i18n="nav.search">Rechercher</a>
+        <a href="#listingsSection" data-i18n="nav.listings">Annonces</a>
+        <button type="button" data-member-open data-auth-required data-i18n="nav.myListings">Mes annonces</button>
+        <button type="button" data-admin-open data-admin-only hidden data-i18n="nav.admin">Admin</button>
+      </nav>
+
+      <div class="top-actions">
+        <button class="lang-toggle" type="button" id="langToggle" aria-label="Changer de langue" data-i18n-attr="aria-label:actions.changeLanguage">
+          <span class="lang-flag" id="langFlag">🇫🇷</span>
+          <span id="langCode">FR</span>
+        </button>
+        <button class="icon-btn" type="button" id="themeToggle" aria-label="Changer de theme">
+          <i data-lucide="moon"></i>
+        </button>
+        <button class="ghost-btn" type="button" id="favoritesButton"><i data-lucide="heart"></i><span data-i18n="nav.favorites">Favoris</span></button>
+        <button class="ghost-btn" type="button" id="chatOpenButton"><i data-lucide="messages-square"></i><span data-i18n="chat.title">Messages</span></button>
+        <section class="top-popover messenger-popover" id="chatQuickPanel" hidden aria-labelledby="chatQuickTitle">
+          <div class="popover-head">
+            <h2 id="chatQuickTitle" data-i18n="chat.title">Messages</h2>
+            <button class="icon-btn" type="button" id="chatQuickClose" aria-label="Fermer"><i data-lucide="x"></i></button>
+          </div>
+          <label class="popover-search">
+            <i data-lucide="search"></i>
+            <input type="search" id="chatQuickSearch" placeholder="Rechercher dans les messages">
+          </label>
+          <div class="popover-tabs">
+            <button class="active" type="button" data-chat-filter="all">Tout</button>
+            <button type="button" data-chat-filter="unread">Non lu</button>
+          </div>
+          <div class="popover-list" id="chatQuickList"></div>
+          <button class="popover-link" type="button" id="chatQuickAll">Tout voir dans Messages</button>
+        </section>
+        <button class="ghost-btn" type="button" id="notificationsOpenButton"><i data-lucide="bell"></i><span data-i18n="notifications.title">Notifications</span></button>
+        <section class="top-popover notifications-popover" id="notificationsQuickPanel" hidden aria-labelledby="notificationsQuickTitle">
+          <div class="popover-head">
+            <h2 id="notificationsQuickTitle" data-i18n="notifications.title">Notifications</h2>
+            <button class="icon-btn" type="button" id="notificationsQuickClose" aria-label="Fermer"><i data-lucide="x"></i></button>
+          </div>
+          <div class="popover-list" id="notificationsQuickList"></div>
+          <button class="popover-link" type="button" id="notificationsQuickAll">Voir toutes les notifications</button>
+        </section>
+        <button class="primary-btn" type="button" data-publish-open><span data-i18n="actions.publish">Publier</span> <i data-lucide="plus"></i></button>
+        <button class="avatar-btn" type="button" data-member-open aria-label="Mes annonces" data-i18n-attr="aria-label:nav.myListings">
+          <i data-lucide="user-circle"></i>
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero" id="home">
+        <div class="hero-copy">
+          <h1 data-i18n="hero.title">Trouvez la maison qui vous correspond</h1>
+          <p data-i18n="hero.subtitle">Maisons à louer, biens à vendre et terrains partout à Madagascar.</p>
+        </div>
+
+        <form class="search-card" id="search">
+          <label>
+            <span data-i18n="search.query">Recherche</span>
+            <input name="q" type="search" placeholder="Ville, quartier, type de bien" data-i18n-attr="placeholder:search.placeholder">
+          </label>
+          <label>
+            <span data-i18n="search.deal">Annonce</span>
+            <select name="dealType">
+              <option value="all" data-i18n="common.all">Tous</option>
+              <option value="location" data-i18n="common.location">Location</option>
+              <option value="vente" data-i18n="common.sale">Vente</option>
+            </select>
+          </label>
+          <label>
+            <span data-i18n="search.property">Bien</span>
+            <select name="propertyType">
+              <option value="all" data-i18n="common.all">Tous</option>
+              <option value="maison" data-i18n="common.house">Maison</option>
+              <option value="appartement" data-i18n="common.apartment">Appartement</option>
+              <option value="terrain" data-i18n="common.land">Terrain</option>
+            </select>
+          </label>
+          <label>
+            <span data-i18n="search.maxPrice">Prix max</span>
+            <input name="maxPrice" type="number" min="0" placeholder="Ariary">
+          </label>
+          <button class="primary-btn" type="submit"><i data-lucide="search"></i><span data-i18n="actions.search">Rechercher</span></button>
+        </form>
+      </section>
+
+      <section class="page-shell">
+        <div class="stats-grid" id="statsGrid"></div>
+
+        <div class="main-layout">
+          <section id="listingsSection">
+            <div class="section-title">
+              <div>
+                <h2 data-i18n="sections.featured">Annonces à la une</h2>
+                <span></span>
+              </div>
+            </div>
+            <div class="listings-grid" id="listingsGrid"></div>
+            <div class="listings-secondary">
+              <div class="section-title">
+                <div>
+                  <h2 data-i18n="sections.otherListings">Autres annonces</h2>
+                  <span></span>
+                </div>
+                <button class="link-btn" type="button" id="allListingsButton"><span data-i18n="actions.allListings">Toutes les annonces</span> <i data-lucide="arrow-right"></i></button>
+              </div>
+              <div class="listings-grid other-listings-grid" id="otherListingsGrid"></div>
+            </div>
+          </section>
+
+          <aside class="side-panel">
+            <div class="promo-panel">
+              <h3 data-i18n="promo.title">Publiez gratuitement</h3>
+              <p data-i18n="promo.text">Ajoutez une annonce avec vos propres photos depuis votre appareil.</p>
+              <button class="primary-btn" type="button" data-publish-open><span data-i18n="actions.publishListing">Publier une annonce</span> <i data-lucide="plus"></i></button>
+            </div>
+
+            <div class="recent-panel">
+              <h3 data-i18n="sections.recent">Annonces récentes</h3>
+              <div id="recentListings"></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="profile-page" id="profilePage" hidden>
+        <div class="profile-page-head">
+          <button class="ghost-btn panel-btn" type="button" id="profileBackButton"><i data-lucide="arrow-left"></i><span data-i18n="actions.back">Retour</span></button>
+        </div>
+        <div id="profilePageContent"></div>
+      </section>
+    </main>
+
+    <dialog class="modal" id="authModal">
+      <form class="modal-panel" id="authForm">
+        <div class="modal-head">
+          <h2 id="authTitle">Connexion</h2>
+          <button class="icon-btn" type="button" data-auth-close><i data-lucide="x"></i></button>
+        </div>
+        <p class="modal-note" id="authNote"></p>
+        <div class="tabs">
+          <button class="active" type="button" data-auth-mode="login" data-i18n="auth.login">Connexion</button>
+          <button type="button" data-auth-mode="register" data-i18n="auth.register">Inscription</button>
+        </div>
+        <div class="form-grid">
+          <label class="register-field" hidden><span data-i18n="auth.name">Nom</span><input name="name" placeholder="Votre nom" data-i18n-attr="placeholder:auth.namePlaceholder" disabled></label>
+          <label><span data-i18n="auth.email">Email</span><input name="email" type="email" required placeholder="vous@email.com"></label>
+          <label class="register-field" hidden><span data-i18n="auth.phone">Téléphone</span><input name="phone" placeholder="+261..." disabled></label>
+          <label class="register-field" hidden><span data-i18n="auth.accountType">Type de compte</span><select name="accountType" disabled><option value="particulier" data-i18n="auth.accountPersonal">Particulier</option><option value="agence" data-i18n="auth.accountAgency">Agence immobilière</option></select></label>
+          <label><span data-i18n="auth.password">Mot de passe</span><input name="password" type="password" required minlength="6" placeholder="Minimum 6 caractères" data-i18n-attr="placeholder:auth.passwordPlaceholder"></label>
+        </div>
+        <div class="modal-actions">
+          <span id="authStatus"></span>
+          <button class="primary-btn" type="submit" id="authSubmit">Se connecter</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="publishModal">
+      <form class="modal-panel" id="publishForm" enctype="multipart/form-data">
+        <div class="modal-head">
+          <h2 data-i18n="publish.title">Publier une annonce</h2>
+          <button class="icon-btn" type="button" data-publish-close><i data-lucide="x"></i></button>
+        </div>
+        <div class="form-grid">
+          <label><span data-i18n="listing.title">Titre</span><input name="title" required placeholder="Maison lumineuse" data-i18n-attr="placeholder:listing.titlePlaceholder"></label>
+          <label><span data-i18n="listing.location">Ville / quartier</span><input name="location" required placeholder="Ivato, Antananarivo"></label>
+          <label class="wide"><span data-i18n="listing.mapUrl">Lien Google Maps précis</span><input name="mapUrl" required type="url" placeholder="https://maps.app.goo.gl/..." data-i18n-attr="placeholder:listing.mapUrlPlaceholder"></label>
+          <label data-deal-field><span data-i18n="search.deal">Annonce</span><select name="dealType"><option value="location" data-i18n="common.location">Location</option><option value="vente" data-i18n="common.sale">Vente</option></select></label>
+          <label data-property-field><span data-i18n="search.property">Bien</span><select name="propertyType"><option value="maison" data-i18n="common.house">Maison</option><option value="appartement" data-i18n="common.apartment">Appartement</option><option value="terrain" data-i18n="common.land">Terrain</option></select></label>
+          <label><span data-i18n="listing.price">Prix Ariary</span><input name="price" required type="number" min="0"></label>
+          <label data-area-field><span data-i18n="listing.area">Surface m²</span><input name="area" type="number" min="0"></label>
+          <label><span data-i18n="listing.bedrooms">Chambres</span><input name="bedrooms" type="number" min="0"></label>
+          <label data-house-field><span data-i18n="listing.availability">Disponibilité</span><select name="isAvailable"><option value="true" data-i18n="listing.available">Disponible</option><option value="false" data-i18n="listing.unavailable">Non disponible</option></select></label>
+          <label class="wide"><span data-i18n="listing.description">Description (habite avec le locataire, dans une clôture, en étage ou non, ...)</span><textarea name="description" rows="4" data-i18n-attr="placeholder:listing.descriptionPlaceholder" placeholder="Décrivez le bien, le quartier et les points forts."></textarea></label>
+          <div class="check-grid wide">
+            <label><span data-i18n="listing.electricity">Courant Jirama</span><select name="hasElectricity"><option value="true" data-i18n="listing.yes">Oui</option><option value="false" data-i18n="listing.no">Non</option></select></label>
+            <label><span data-i18n="listing.waterSource">Eau</span><select name="waterSource"><option value="puits" data-i18n="listing.waterWell">Puits</option><option value="jirama" data-i18n="listing.waterJirama">Jirama</option><option value="exterieur" data-i18n="listing.waterOutside">Extérieur</option></select></label>
+            <label><span data-i18n="listing.shower">Douche</span><select name="showerLocation"><option value="interieur" data-i18n="listing.inside">Intérieur</option><option value="exterieur" data-i18n="listing.outside">Extérieur</option></select></label>
+            <label><span data-i18n="listing.wc">WC</span><select name="wcLocation"><option value="interieur" data-i18n="listing.inside">Intérieur</option><option value="exterieur" data-i18n="listing.outside">Extérieur</option></select></label>
+            <label class="check-field"><input name="hasMotorbikeAccess" type="checkbox"><span data-i18n="listing.motorbikeAccess">Accès moto</span></label>
+            <label class="check-field"><input name="hasCarAccess" type="checkbox"><span data-i18n="listing.carAccess">Accès voiture</span></label>
+          </div>
+          <label class="wide file-field"><span data-i18n="listing.images">Photos</span><input name="image" type="file" accept="image/*" multiple required></label>
+          <label class="wide file-field"><span data-i18n="listing.video">Vidéo de présentation</span><input name="video" type="file" accept="video/*"></label>
+        </div>
+        <div class="modal-actions">
+          <span id="publishStatus"></span>
+          <button class="primary-btn" type="submit" data-i18n="actions.publish">Publier</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="member-modal" id="memberModal" hidden role="dialog" aria-modal="true" aria-labelledby="memberTitle">
+      <section class="member-panel">
+        <div class="modal-head">
+          <div>
+            <h2 id="memberTitle" data-i18n="nav.myListings">Mes annonces</h2>
+            <p id="memberIdentity"></p>
+          </div>
+          <button class="icon-btn" type="button" data-member-close><i data-lucide="x"></i></button>
+        </div>
+        <div class="member-actions">
+          <button class="ghost-btn panel-btn" type="button" data-member-profile-open><i data-lucide="user"></i><span data-i18n="admin.profile">Profil</span></button>
+          <button class="ghost-btn panel-btn" type="button" data-member-notifications-open><i data-lucide="bell"></i><span data-i18n="notifications.title">Notifications</span></button>
+          <button class="primary-btn" type="button" data-publish-open><span data-i18n="actions.publishListing">Publier une annonce</span> <i data-lucide="plus"></i></button>
+          <button class="ghost-btn panel-btn" type="button" id="logoutButton"><i data-lucide="log-out"></i><span data-i18n="auth.logout">Déconnexion</span></button>
+        </div>
+        <div class="dashboard-stats" id="dashboardStats"></div>
+        <div class="dashboard-toolbar">
+          <h3 data-i18n="nav.myListings">Mes annonces</h3>
+          <div class="dashboard-filters">
+            <button class="active" type="button" data-dashboard-filter="all" data-i18n="common.allPlural">Toutes</button>
+            <button type="button" data-dashboard-filter="location" data-i18n="common.locations">Locations</button>
+            <button type="button" data-dashboard-filter="vente" data-i18n="common.sales">Ventes</button>
+          </div>
+        </div>
+        <div class="member-list" id="memberListings"></div>
+        <section class="notifications-panel" id="memberNotificationsPanel" hidden>
+          <div class="dashboard-toolbar">
+            <h3 data-i18n="notifications.title">Notifications</h3>
+            <button class="ghost-btn panel-btn" type="button" data-member-notifications-close><i data-lucide="x"></i><span data-i18n="actions.close">Fermer</span></button>
+          </div>
+          <div class="notifications-list" id="memberNotifications"></div>
+        </section>
+      </section>
+      <section class="member-profile-panel" id="memberProfilePanel" hidden aria-labelledby="memberProfileTitle">
+        <div class="admin-activity-head">
+          <div>
+            <h3 id="memberProfileTitle">Profil</h3>
+            <p id="memberProfileSubtitle"></p>
+          </div>
+          <button class="icon-btn" type="button" data-member-profile-close aria-label="Fermer"><i data-lucide="x"></i></button>
+        </div>
+        <div class="admin-profile-content" id="memberProfileContent"></div>
+      </section>
+    </div>
+
+    <dialog class="modal" id="editModal">
+      <form class="modal-panel" id="editForm" enctype="multipart/form-data">
+        <div class="modal-head">
+          <h2 data-i18n="edit.title">Modifier l’annonce</h2>
+          <button class="icon-btn" type="button" data-edit-close><i data-lucide="x"></i></button>
+        </div>
+        <div class="form-grid">
+          <label><span data-i18n="listing.title">Titre</span><input name="title" required></label>
+          <label><span data-i18n="listing.location">Ville / quartier</span><input name="location" required></label>
+          <label class="wide"><span data-i18n="listing.mapUrl">Lien Google Maps précis</span><input name="mapUrl" type="url" placeholder="https://maps.app.goo.gl/..." data-i18n-attr="placeholder:listing.mapUrlPlaceholder"></label>
+          <label data-deal-field><span data-i18n="search.deal">Annonce</span><select name="dealType"><option value="location" data-i18n="common.location">Location</option><option value="vente" data-i18n="common.sale">Vente</option></select></label>
+          <label data-property-field><span data-i18n="search.property">Bien</span><select name="propertyType"><option value="maison" data-i18n="common.house">Maison</option><option value="appartement" data-i18n="common.apartment">Appartement</option><option value="terrain" data-i18n="common.land">Terrain</option></select></label>
+          <label><span data-i18n="listing.price">Prix Ariary</span><input name="price" required type="number" min="0"></label>
+          <label data-area-field><span data-i18n="listing.area">Surface m²</span><input name="area" type="number" min="0"></label>
+          <label><span data-i18n="listing.bedrooms">Chambres</span><input name="bedrooms" type="number" min="0"></label>
+          <label data-house-field><span data-i18n="listing.availability">Disponibilité</span><select name="isAvailable"><option value="true" data-i18n="listing.available">Disponible</option><option value="false" data-i18n="listing.unavailable">Non disponible</option></select></label>
+          <label class="wide"><span data-i18n="listing.description">Description (habite avec le locataire, dans une clôture, en étage ou non, ...)</span><textarea name="description" rows="4"></textarea></label>
+          <div class="check-grid wide">
+            <label><span data-i18n="listing.electricity">Courant Jirama</span><select name="hasElectricity"><option value="true" data-i18n="listing.yes">Oui</option><option value="false" data-i18n="listing.no">Non</option></select></label>
+            <label><span data-i18n="listing.waterSource">Eau</span><select name="waterSource"><option value="puits" data-i18n="listing.waterWell">Puits</option><option value="jirama" data-i18n="listing.waterJirama">Jirama</option><option value="exterieur" data-i18n="listing.waterOutside">Extérieur</option></select></label>
+            <label><span data-i18n="listing.shower">Douche</span><select name="showerLocation"><option value="interieur" data-i18n="listing.inside">Intérieur</option><option value="exterieur" data-i18n="listing.outside">Extérieur</option></select></label>
+            <label><span data-i18n="listing.wc">WC</span><select name="wcLocation"><option value="interieur" data-i18n="listing.inside">Intérieur</option><option value="exterieur" data-i18n="listing.outside">Extérieur</option></select></label>
+            <label class="check-field"><input name="hasMotorbikeAccess" type="checkbox"><span data-i18n="listing.motorbikeAccess">Accès moto</span></label>
+            <label class="check-field"><input name="hasCarAccess" type="checkbox"><span data-i18n="listing.carAccess">Accès voiture</span></label>
+          </div>
+          <label class="wide file-field"><span data-i18n="listing.newImages">Nouvelles photos</span><input name="image" type="file" accept="image/*" multiple></label>
+          <label class="wide file-field"><span data-i18n="listing.newVideo">Nouvelle vidéo de présentation</span><input name="video" type="file" accept="video/*"></label>
+        </div>
+        <div class="modal-actions">
+          <span id="editStatus"></span>
+          <button class="primary-btn" type="submit" data-i18n="actions.save">Enregistrer</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="verificationModal">
+      <form class="modal-panel" id="verificationForm" enctype="multipart/form-data">
+        <div class="modal-head">
+          <h2 data-i18n="verify.title">Vérifier mon compte</h2>
+          <button class="icon-btn" type="button" data-verification-close><i data-lucide="x"></i></button>
+        </div>
+        <p class="modal-note" data-i18n="verify.note">Envoyez une pièce d’identité ou un justificatif pour que le support valide votre compte.</p>
+        <div class="form-grid">
+          <label><span data-i18n="verify.fullName">Nom complet</span><input name="fullName" required></label>
+          <label><span data-i18n="verify.documentType">Type de document</span><select name="documentType"><option value="cin">CIN</option><option value="passport">Passeport</option><option value="other" data-i18n="verify.other">Autre</option></select></label>
+          <label class="wide file-field"><span data-i18n="verify.documents">Documents</span><input name="documents" type="file" accept="image/*,.pdf,application/pdf" multiple required></label>
+          <label class="wide"><span data-i18n="verify.message">Message</span><textarea name="note" rows="3"></textarea></label>
+        </div>
+        <div class="modal-actions">
+          <span id="verificationStatus"></span>
+          <button class="primary-btn" type="submit"><i data-lucide="send"></i><span data-i18n="verify.submit">Envoyer</span></button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="modal map-modal" id="mapModal">
+      <section class="modal-panel">
+        <div class="modal-head">
+          <div>
+            <h2 data-i18n="map.title">Localisation</h2>
+            <p id="mapTitle"></p>
+          </div>
+          <button class="icon-btn" type="button" data-map-close><i data-lucide="x"></i></button>
+        </div>
+        <iframe id="mapFrame" class="map-frame" title="Google Maps" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        <div class="modal-actions">
+          <span></span>
+          <a class="primary-btn map-link" id="mapExternalLink" href="#" target="_blank" rel="noreferrer">
+            <span data-i18n="map.openExternal">Ouvrir dans Google Maps</span>
+            <i data-lucide="external-link"></i>
+          </a>
+        </div>
+      </section>
+    </dialog>
+
+    <dialog class="modal detail-modal" id="detailModal">
+      <section class="modal-panel">
+        <div class="modal-head">
+          <div>
+            <h2 id="detailTitle"></h2>
+            <p id="detailReference"></p>
+          </div>
+          <button class="icon-btn" type="button" data-detail-close><i data-lucide="x"></i></button>
+        </div>
+        <div id="detailContent"></div>
+      </section>
+    </dialog>
+
+    <div class="admin-modal" id="adminModal" hidden role="dialog" aria-modal="true" aria-labelledby="adminTitle">
+      <section class="admin-shell">
+        <aside class="admin-sidebar">
+          <div>
+            <div class="admin-brand">
+              <i data-lucide="shield-check"></i>
+              <span>MaisonMada</span>
+            </div>
+            <p data-i18n="admin.subtitle">Modération des annonces et gestion des comptes.</p>
+          </div>
+          <nav class="admin-nav">
+            <button class="active" type="button" data-admin-tab="listings"><i data-lucide="home"></i><span data-i18n="admin.listings">Annonces</span></button>
+            <button type="button" data-admin-tab="users"><i data-lucide="users"></i><span data-i18n="admin.users">Comptes</span></button>
+          </nav>
+          <button class="ghost-btn panel-btn" type="button" data-admin-close><i data-lucide="x"></i><span data-i18n="actions.close">Fermer</span></button>
+        </aside>
+        <main class="admin-main">
+          <div class="admin-topline">
+            <div>
+              <h2 id="adminTitle" data-i18n="admin.title">Administration</h2>
+              <p id="adminSectionTitle"></p>
+            </div>
+            <button class="icon-btn" type="button" data-admin-close aria-label="Fermer" data-i18n-attr="aria-label:actions.close"><i data-lucide="x"></i></button>
+          </div>
+          <div class="admin-stats" id="adminStats"></div>
+          <section class="admin-table" id="adminListings"></section>
+          <section class="admin-table" id="adminUsers" hidden></section>
+        </main>
+      </section>
+      <section class="admin-activity-modal" id="adminActivityPanel" hidden aria-labelledby="adminActivityTitle">
+        <div class="admin-activity-head">
+          <div>
+            <h3 id="adminActivityTitle">Historique</h3>
+            <p id="adminActivityUser"></p>
+          </div>
+          <button class="icon-btn" type="button" data-admin-activity-close aria-label="Fermer"><i data-lucide="x"></i></button>
+        </div>
+        <div class="admin-activity-list" id="adminActivityList"></div>
+      </section>
+      <section class="admin-profile-modal" id="adminProfilePanel" hidden aria-labelledby="adminProfileTitle">
+        <div class="admin-activity-head">
+          <div>
+            <h3 id="adminProfileTitle">Profil</h3>
+            <p id="adminProfileSubtitle"></p>
+          </div>
+          <button class="icon-btn" type="button" data-admin-profile-close aria-label="Fermer"><i data-lucide="x"></i></button>
+        </div>
+        <div class="admin-profile-content" id="adminProfileContent"></div>
+      </section>
+    </div>
+
+    <aside class="chat-drawer" id="chatDrawer" hidden aria-labelledby="chatTitle">
+      <div class="chat-shell">
+        <div class="chat-head">
+          <div>
+            <h2 id="chatTitle" data-i18n="chat.title">Messages</h2>
+            <p id="chatSubtitle" data-i18n="chat.subtitle">Discutez avec les annonceurs ou le support.</p>
+          </div>
+          <button class="icon-btn" type="button" id="chatCloseButton" aria-label="Fermer"><i data-lucide="x"></i></button>
+        </div>
+        <div class="chat-actions">
+          <button class="primary-btn" type="button" id="supportChatButton"><i data-lucide="headphones"></i><span data-i18n="chat.support">Support client</span></button>
+          <button class="ghost-btn panel-btn" type="button" id="chatRefreshButton"><i data-lucide="refresh-cw"></i><span data-i18n="chat.refresh">Actualiser</span></button>
+        </div>
+        <div class="chat-layout">
+          <div class="chat-conversations" id="chatConversations"></div>
+          <section class="chat-thread">
+            <div class="chat-thread-head">
+              <strong id="chatThreadTitle" data-i18n="chat.pickConversation">Choisissez une conversation</strong>
+              <span id="chatConnectionStatus"></span>
+            </div>
+            <div class="chat-messages" id="chatMessages"></div>
+            <form class="chat-form" id="chatForm">
+              <input name="message" autocomplete="off" maxlength="1200" placeholder="Votre message" data-i18n-attr="placeholder:chat.placeholder">
+              <button class="primary-btn" type="submit"><i data-lucide="send"></i><span data-i18n="chat.send">Envoyer</span></button>
+            </form>
+          </section>
+        </div>
+      </div>
+    </aside>
+
+    <div class="toast" id="toast"></div>
+  </body>
+</html>

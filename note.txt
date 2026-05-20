@@ -1,0 +1,69 @@
+Draft auto save reprendre pub
+Engagement réserver notification paiement durée de la réservation paiement réservation délai dépassé rendre l'argent (après)
+Popup annulation réservation
+Réservation 10% loyer
+
+
+
+Rajout bien hotel
+Rating profil côté admin
+P notification message admin
+Bug rédaction publication
+
+
+* Fait : 
+Appel lien ok
+Moderation des publications ok
+Rajout langue anglaise ok
+vovo rano Jirama extérieur ok
+courant Jirama oui ou non
+Référence number on each pub (ok) à modifier MM-12121
+Video description (Facultatif)
+Rajouter raison de refus modération
+Vente à retirer spécifique agence
+ENlever la section appartement (compte particulier)
+Enlever surface sur location
+Enlevever la possibilité de modifier une pub en attente
+copie rapide référence number
+ID number user
+dispo non dispo enlever non dispo des annonces
+Caroussel annonce à la une
+Séparer les annonces validées et en attente
+Recherche filtre pour les étudiants
+Douche et WC (à l'interieur ou à l'extérieur)
+despcription (habite avec le locataire, dans une clôture, en étage ou non,..... )
+confirmation suppression compte user
+
+
+
+Fonctionnalité implémentés ce jour :
+Rajout et retirait publication à la une
+Menu en sandwich
+Hebergement github
+Menu en sandwichh responsive
+changement site pro pour agence immo
+Passage en compte immo et en compte particulier partie admin
+Historique activité suppression création (après)
+Déplacement bouton toutes les annoces en bas
+Lien profil
+Accès profil user
+Localisation précise
+Filtre dashboard locataire (après)
+Coordonnée GPS : yes marque zone spécifique (le client envoie un lien pour partager la socalisation de la maison)
+Lien publication
+chat client et support (après)
+Vérification compte
+
+
+Business model :
+Publication gratuite
+Caution 5% par mois
+
+
+
+Fonctionnalités fait ce jour
+
+Amélioration message raison de refus
+Retrait menu terrain et appart
+Ajout partie notification et envoie de message 
+Rajout système de brouillon

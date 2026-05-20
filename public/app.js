@@ -2617,30 +2617,6 @@ async function hydrateUser() {
   }
 }
 
-async function loadSupportChat() {
-  try {
-    const config = await api('/api/config');
-    const tawkTo = config.tawkTo || {};
-
-    if (!tawkTo.propertyId || !tawkTo.widgetId || document.querySelector('[data-tawk-to]')) {
-      return;
-    }
-
-    window.Tawk_API = window.Tawk_API || {};
-    window.Tawk_LoadStart = new Date();
-
-    const script = document.createElement('script');
-    script.async = true;
-    script.src = `https://embed.tawk.to/${tawkTo.propertyId}/${tawkTo.widgetId}`;
-    script.charset = 'UTF-8';
-    script.setAttribute('crossorigin', '*');
-    script.setAttribute('data-tawk-to', 'true');
-    document.body.appendChild(script);
-  } catch (_error) {
-    // Le chat support reste optionnel si la configuration n'est pas disponible.
-  }
-}
-
 els.search.addEventListener('submit', (event) => {
   event.preventDefault();
   loadOtherListings(searchParams(), { includeFeatured: true }).catch((error) => toast(error.message));
@@ -3314,4 +3290,3 @@ hydrateUser()
   .then(handleRoute)
   .catch((error) => toast(error.message))
   .finally(icons);
-loadSupportChat();

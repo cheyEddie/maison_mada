@@ -22,14 +22,6 @@ function createApp() {
   app.use('/api/chat', chatRoutes);
   app.use('/api/listings', listingRoutes);
   app.use('/api/stats', statsRoutes);
-  app.get('/api/config', (_req, res) => {
-    res.json({
-      tawkTo: {
-        propertyId: process.env.TAWK_TO_PROPERTY_ID || '',
-        widgetId: process.env.TAWK_TO_WIDGET_ID || ''
-      }
-    });
-  });
 
   app.use(errorHandler);
 

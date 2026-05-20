@@ -11,7 +11,7 @@ Application immobiliere reconstruite depuis zero avec Node.js, Express, MongoDB 
 - liste des annonces du membre ;
 - favoris cote navigateur ;
 - mode sombre persistant ;
-- chat support Tawk.to configurable ;
+- chat natif avec Socket.IO ;
 - compte administrateur avec moderation des annonces.
 
 ## Lancement
@@ -28,15 +28,6 @@ Ouvrir ensuite :
 http://localhost:3000
 ```
 
-## Chat Tawk.to
-
-Ajouter les identifiants du widget dans `.env` :
-
-```bash
-TAWK_TO_PROPERTY_ID=votre_property_id
-TAWK_TO_WIDGET_ID=default
-```
-
 ## Administration
 
 Un compte admin local est cree au demarrage avec les variables `.env` :
@@ -47,12 +38,6 @@ ADMIN_PASSWORD=change-moi-123
 ```
 
 Les annonces publiees par les membres passent en moderation avant d'apparaitre publiquement.
-
-Dans Tawk.to, ces valeurs se trouvent dans le script d'integration :
-
-```html
-https://embed.tawk.to/PROPERTY_ID/WIDGET_ID
-```
 
 ## Architecture
 

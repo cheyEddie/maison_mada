@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="/styles.css">
     <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
     <script src="/socket.io/socket.io.js" defer></script>
     <script src="/app.js" defer></script>
   </head>
@@ -35,10 +36,14 @@
       </nav>
 
       <div class="top-actions">
-        <button class="lang-toggle" type="button" id="langToggle" aria-label="Changer de langue" data-i18n-attr="aria-label:actions.changeLanguage">
-          <span class="lang-flag" id="langFlag">🇫🇷</span>
-          <span id="langCode">FR</span>
-        </button>
+        <label class="lang-select" aria-label="Changer de langue" data-i18n-attr="aria-label:actions.changeLanguage">
+          <i data-lucide="languages"></i>
+          <select id="langSelect">
+            <option value="fr">🇫🇷 FR</option>
+            <option value="mg">🇲🇬 MG</option>
+            <option value="en">🇬🇧 EN</option>
+          </select>
+        </label>
         <button class="icon-btn" type="button" id="themeToggle" aria-label="Changer de theme">
           <i data-lucide="moon"></i>
         </button>
@@ -103,6 +108,7 @@
               <option value="maison" data-i18n="common.house">Maison</option>
               <option value="appartement" data-i18n="common.apartment">Appartement</option>
               <option value="terrain" data-i18n="common.land">Terrain</option>
+              <option value="local_commercial" data-i18n="common.commercialPremises">Local commercial</option>
             </select>
           </label>
           <label>
@@ -196,7 +202,7 @@
           <label><span data-i18n="listing.location">Ville / quartier</span><input name="location" required placeholder="Ivato, Antananarivo"></label>
           <label class="wide"><span data-i18n="listing.mapUrl">Lien Google Maps précis</span><input name="mapUrl" required type="url" placeholder="https://maps.app.goo.gl/..." data-i18n-attr="placeholder:listing.mapUrlPlaceholder"></label>
           <label data-deal-field><span data-i18n="search.deal">Annonce</span><select name="dealType"><option value="location" data-i18n="common.location">Location</option><option value="vente" data-i18n="common.sale">Vente</option></select></label>
-          <label data-property-field><span data-i18n="search.property">Bien</span><select name="propertyType"><option value="maison" data-i18n="common.house">Maison</option><option value="appartement" data-i18n="common.apartment">Appartement</option><option value="terrain" data-i18n="common.land">Terrain</option></select></label>
+          <label data-property-field><span data-i18n="search.property">Bien</span><select name="propertyType"><option value="maison" data-i18n="common.house">Maison</option><option value="appartement" data-i18n="common.apartment">Appartement</option><option value="terrain" data-i18n="common.land">Terrain</option><option value="local_commercial" data-i18n="common.commercialPremises">Local commercial</option></select></label>
           <label><span data-i18n="listing.price">Prix Ariary</span><input name="price" required type="number" min="0"></label>
           <label data-area-field><span data-i18n="listing.area">Surface m²</span><input name="area" type="number" min="0"></label>
           <label><span data-i18n="listing.bedrooms">Chambres</span><input name="bedrooms" type="number" min="0"></label>
@@ -204,9 +210,9 @@
           <label class="wide"><span data-i18n="listing.description">Description (habite avec le locataire, dans une clôture, en étage ou non, ...)</span><textarea name="description" rows="4" data-i18n-attr="placeholder:listing.descriptionPlaceholder" placeholder="Décrivez le bien, le quartier et les points forts."></textarea></label>
           <div class="check-grid wide">
             <label><span data-i18n="listing.electricity">Courant Jirama</span><select name="hasElectricity"><option value="true" data-i18n="listing.yes">Oui</option><option value="false" data-i18n="listing.no">Non</option></select></label>
-            <label><span data-i18n="listing.waterSource">Eau</span><select name="waterSource"><option value="puits" data-i18n="listing.waterWell">Puits</option><option value="jirama" data-i18n="listing.waterJirama">Jirama</option><option value="exterieur" data-i18n="listing.waterOutside">Extérieur</option></select></label>
-            <label><span data-i18n="listing.shower">Douche</span><select name="showerLocation"><option value="interieur" data-i18n="listing.inside">Intérieur</option><option value="exterieur" data-i18n="listing.outside">Extérieur</option></select></label>
-            <label><span data-i18n="listing.wc">WC</span><select name="wcLocation"><option value="interieur" data-i18n="listing.inside">Intérieur</option><option value="exterieur" data-i18n="listing.outside">Extérieur</option></select></label>
+            <label data-residential-utility><span data-i18n="listing.waterSource">Eau</span><select name="waterSource"><option value="puits" data-i18n="listing.waterWell">Puits</option><option value="jirama" data-i18n="listing.waterJirama">Jirama</option><option value="exterieur" data-i18n="listing.waterOutside">Extérieur</option></select></label>
+            <label data-residential-utility><span data-i18n="listing.shower">Douche</span><select name="showerLocation"><option value="interieur" data-i18n="listing.inside">Intérieur</option><option value="exterieur" data-i18n="listing.outside">Extérieur</option></select></label>
+            <label data-residential-utility><span data-i18n="listing.wc">WC</span><select name="wcLocation"><option value="interieur" data-i18n="listing.inside">Intérieur</option><option value="exterieur" data-i18n="listing.outside">Extérieur</option></select></label>
             <label class="check-field"><input name="hasMotorbikeAccess" type="checkbox"><span data-i18n="listing.motorbikeAccess">Accès moto</span></label>
             <label class="check-field"><input name="hasCarAccess" type="checkbox"><span data-i18n="listing.carAccess">Accès voiture</span></label>
           </div>
@@ -276,7 +282,7 @@
           <label><span data-i18n="listing.location">Ville / quartier</span><input name="location" required></label>
           <label class="wide"><span data-i18n="listing.mapUrl">Lien Google Maps précis</span><input name="mapUrl" type="url" placeholder="https://maps.app.goo.gl/..." data-i18n-attr="placeholder:listing.mapUrlPlaceholder"></label>
           <label data-deal-field><span data-i18n="search.deal">Annonce</span><select name="dealType"><option value="location" data-i18n="common.location">Location</option><option value="vente" data-i18n="common.sale">Vente</option></select></label>
-          <label data-property-field><span data-i18n="search.property">Bien</span><select name="propertyType"><option value="maison" data-i18n="common.house">Maison</option><option value="appartement" data-i18n="common.apartment">Appartement</option><option value="terrain" data-i18n="common.land">Terrain</option></select></label>
+          <label data-property-field><span data-i18n="search.property">Bien</span><select name="propertyType"><option value="maison" data-i18n="common.house">Maison</option><option value="appartement" data-i18n="common.apartment">Appartement</option><option value="terrain" data-i18n="common.land">Terrain</option><option value="local_commercial" data-i18n="common.commercialPremises">Local commercial</option></select></label>
           <label><span data-i18n="listing.price">Prix Ariary</span><input name="price" required type="number" min="0"></label>
           <label data-area-field><span data-i18n="listing.area">Surface m²</span><input name="area" type="number" min="0"></label>
           <label><span data-i18n="listing.bedrooms">Chambres</span><input name="bedrooms" type="number" min="0"></label>
@@ -284,9 +290,9 @@
           <label class="wide"><span data-i18n="listing.description">Description (habite avec le locataire, dans une clôture, en étage ou non, ...)</span><textarea name="description" rows="4"></textarea></label>
           <div class="check-grid wide">
             <label><span data-i18n="listing.electricity">Courant Jirama</span><select name="hasElectricity"><option value="true" data-i18n="listing.yes">Oui</option><option value="false" data-i18n="listing.no">Non</option></select></label>
-            <label><span data-i18n="listing.waterSource">Eau</span><select name="waterSource"><option value="puits" data-i18n="listing.waterWell">Puits</option><option value="jirama" data-i18n="listing.waterJirama">Jirama</option><option value="exterieur" data-i18n="listing.waterOutside">Extérieur</option></select></label>
-            <label><span data-i18n="listing.shower">Douche</span><select name="showerLocation"><option value="interieur" data-i18n="listing.inside">Intérieur</option><option value="exterieur" data-i18n="listing.outside">Extérieur</option></select></label>
-            <label><span data-i18n="listing.wc">WC</span><select name="wcLocation"><option value="interieur" data-i18n="listing.inside">Intérieur</option><option value="exterieur" data-i18n="listing.outside">Extérieur</option></select></label>
+            <label data-residential-utility><span data-i18n="listing.waterSource">Eau</span><select name="waterSource"><option value="puits" data-i18n="listing.waterWell">Puits</option><option value="jirama" data-i18n="listing.waterJirama">Jirama</option><option value="exterieur" data-i18n="listing.waterOutside">Extérieur</option></select></label>
+            <label data-residential-utility><span data-i18n="listing.shower">Douche</span><select name="showerLocation"><option value="interieur" data-i18n="listing.inside">Intérieur</option><option value="exterieur" data-i18n="listing.outside">Extérieur</option></select></label>
+            <label data-residential-utility><span data-i18n="listing.wc">WC</span><select name="wcLocation"><option value="interieur" data-i18n="listing.inside">Intérieur</option><option value="exterieur" data-i18n="listing.outside">Extérieur</option></select></label>
             <label class="check-field"><input name="hasMotorbikeAccess" type="checkbox"><span data-i18n="listing.motorbikeAccess">Accès moto</span></label>
             <label class="check-field"><input name="hasCarAccess" type="checkbox"><span data-i18n="listing.carAccess">Accès voiture</span></label>
           </div>
@@ -352,57 +358,6 @@
         <div id="detailContent"></div>
       </section>
     </dialog>
-
-    <div class="admin-modal" id="adminModal" hidden role="dialog" aria-modal="true" aria-labelledby="adminTitle">
-      <section class="admin-shell">
-        <aside class="admin-sidebar">
-          <div>
-            <div class="admin-brand">
-              <i data-lucide="shield-check"></i>
-              <span>MaisonMada</span>
-            </div>
-            <p data-i18n="admin.subtitle">Modération des annonces et gestion des comptes.</p>
-          </div>
-          <nav class="admin-nav">
-            <button class="active" type="button" data-admin-tab="listings"><i data-lucide="home"></i><span data-i18n="admin.listings">Annonces</span></button>
-            <button type="button" data-admin-tab="users"><i data-lucide="users"></i><span data-i18n="admin.users">Comptes</span></button>
-          </nav>
-          <button class="ghost-btn panel-btn" type="button" data-admin-close><i data-lucide="x"></i><span data-i18n="actions.close">Fermer</span></button>
-        </aside>
-        <main class="admin-main">
-          <div class="admin-topline">
-            <div>
-              <h2 id="adminTitle" data-i18n="admin.title">Administration</h2>
-              <p id="adminSectionTitle"></p>
-            </div>
-            <button class="icon-btn" type="button" data-admin-close aria-label="Fermer" data-i18n-attr="aria-label:actions.close"><i data-lucide="x"></i></button>
-          </div>
-          <div class="admin-stats" id="adminStats"></div>
-          <section class="admin-table" id="adminListings"></section>
-          <section class="admin-table" id="adminUsers" hidden></section>
-        </main>
-      </section>
-      <section class="admin-activity-modal" id="adminActivityPanel" hidden aria-labelledby="adminActivityTitle">
-        <div class="admin-activity-head">
-          <div>
-            <h3 id="adminActivityTitle">Historique</h3>
-            <p id="adminActivityUser"></p>
-          </div>
-          <button class="icon-btn" type="button" data-admin-activity-close aria-label="Fermer"><i data-lucide="x"></i></button>
-        </div>
-        <div class="admin-activity-list" id="adminActivityList"></div>
-      </section>
-      <section class="admin-profile-modal" id="adminProfilePanel" hidden aria-labelledby="adminProfileTitle">
-        <div class="admin-activity-head">
-          <div>
-            <h3 id="adminProfileTitle">Profil</h3>
-            <p id="adminProfileSubtitle"></p>
-          </div>
-          <button class="icon-btn" type="button" data-admin-profile-close aria-label="Fermer"><i data-lucide="x"></i></button>
-        </div>
-        <div class="admin-profile-content" id="adminProfileContent"></div>
-      </section>
-    </div>
 
     <aside class="chat-drawer" id="chatDrawer" hidden aria-labelledby="chatTitle">
       <div class="chat-shell">

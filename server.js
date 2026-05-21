@@ -11,6 +11,7 @@ const {
   ensureDescriptions,
   ensureAvailabilityFields,
   ensureImageArrays,
+  ensureListingArrondissements,
   ensureListingIndexes,
   ensureOwnerPhones,
   ensureReferenceFormat,
@@ -37,6 +38,7 @@ async function start() {
   await ensureOwnerPhones();
   await ensureListingStatuses();
   await ensureUtilityFields();
+  await ensureListingArrondissements();
   await removeDeprecatedFields();
   await ensureUserRoles();
   await ensureAdminUser();

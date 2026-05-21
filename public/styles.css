@@ -25,6 +25,7 @@
   border-color: #dc2626 !important;
   background: #fee2e2 !important;
   color: #991b1b !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.14);
 }
 
 #chatOpenButton.has-unread svg,
@@ -53,6 +54,26 @@
   font-size: 0.72rem;
   font-weight: 800;
   box-shadow: 0 0 0 2px var(--surface);
+}
+
+#notificationsOpenButton.has-unread::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  border-radius: inherit;
+  animation: notificationPulse 1.8s ease-out infinite;
+}
+
+@keyframes notificationPulse {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.12);
+  }
 }
 
 .chat-drawer {
@@ -537,12 +558,13 @@ textarea:focus-visible {
   display: none;
 }
 
-.lang-toggle {
+.lang-select {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-width: 70px;
+  min-width: 92px;
   height: 36px;
   color: var(--ink);
   background: var(--surface-soft);
@@ -551,9 +573,30 @@ textarea:focus-visible {
   font-weight: 900;
 }
 
-.lang-flag {
-  font-size: 17px;
-  line-height: 1;
+.lang-select svg {
+  width: 17px;
+  height: 17px;
+}
+
+.lang-select select {
+  min-width: 52px;
+  border: 0;
+  outline: 0;
+  color: var(--ink);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  appearance: none;
+}
+
+.lang-select::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+  opacity: 0.7;
 }
 
 .ghost-btn,
@@ -612,7 +655,8 @@ textarea:focus-visible {
 .icon-btn:hover,
 .avatar-btn:hover,
 .link-btn:hover,
-.lang-toggle:hover {
+.lang-select:hover,
+.lang-select:focus-within {
   color: var(--green);
   border-color: color-mix(in srgb, var(--green) 28%, var(--line));
   background: color-mix(in srgb, var(--green) 7%, var(--surface));
@@ -1276,29 +1320,28 @@ textarea {
 }
 
 .admin-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
+  position: relative;
+  z-index: 1;
   display: none;
-  padding: 22px;
-  background: rgba(4, 9, 15, 0.72);
+  padding: 24px clamp(16px, 4vw, 56px);
+  background: var(--page);
 }
 
 .admin-modal.is-open {
-  display: grid;
+  display: block;
 }
 
 .admin-shell {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
-  width: min(1480px, 100%);
-  height: min(920px, calc(100vh - 44px));
-  margin: auto;
+  grid-template-columns: 248px minmax(0, 1fr);
+  width: min(1540px, 100%);
+  min-height: calc(100vh - 126px);
+  margin: 0 auto;
   overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 12px;
-  box-shadow: var(--shadow);
+  border-radius: 10px;
+  box-shadow: 0 18px 50px rgba(16, 22, 32, 0.08);
 }
 
 .admin-sidebar {
@@ -1355,7 +1398,7 @@ textarea {
 .admin-main {
   min-width: 0;
   overflow: auto;
-  padding: 24px;
+  padding: clamp(18px, 2.6vw, 32px);
 }
 
 .admin-topline {
@@ -1413,6 +1456,252 @@ textarea {
   gap: 10px;
 }
 
+.crm-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.crm-panel {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.crm-wide {
+  grid-column: 1 / -1;
+}
+
+.crm-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.crm-panel-head h3,
+.crm-panel-head p {
+  margin: 0;
+}
+
+.crm-panel-head p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.crm-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.crm-metrics.compact {
+  grid-template-columns: 1fr;
+}
+
+.crm-metric {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 78px;
+  padding: 12px;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+
+.crm-metric svg {
+  color: var(--green);
+}
+
+.crm-metric.warning svg,
+.crm-metric.warning strong {
+  color: #f97316;
+}
+
+.crm-metric.success svg,
+.crm-metric.success strong {
+  color: var(--green);
+}
+
+.crm-metric.danger svg,
+.crm-metric.danger strong {
+  color: #dc2626;
+}
+
+.crm-metric strong,
+.crm-metric span {
+  display: block;
+}
+
+.crm-metric strong {
+  font-size: 1.35rem;
+}
+
+.crm-metric span {
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.crm-chart-panel {
+  height: 240px;
+  padding: 12px;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+
+.crm-chart-panel.small {
+  height: 220px;
+}
+
+.crm-chart-panel canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.crm-actions {
+  display: grid;
+  gap: 9px;
+}
+
+.crm-actions .primary-btn,
+.crm-actions .panel-btn {
+  justify-content: flex-start;
+}
+
+.crm-list {
+  display: grid;
+  gap: 8px;
+}
+
+.crm-list button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 58px;
+  padding: 10px;
+  color: var(--ink);
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  text-align: left;
+}
+
+.crm-list button:hover {
+  border-color: color-mix(in srgb, var(--green) 28%, var(--line));
+  background: color-mix(in srgb, var(--green) 7%, var(--surface));
+}
+
+.crm-list span:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.crm-list strong,
+.crm-list small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-list small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.admin-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.admin-toolbar > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.admin-toolbar strong {
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.admin-toolbar span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.admin-toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-search {
+  height: 40px;
+  min-width: min(280px, 100%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.admin-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: var(--ink);
+  background: transparent;
+}
+
+.admin-filter-pills {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.admin-filter-pills button {
+  min-height: 34px;
+  padding: 0 10px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-weight: 900;
+}
+
+.admin-filter-pills button.active,
+.admin-filter-pills button:hover {
+  color: var(--green);
+  border-color: color-mix(in srgb, var(--green) 30%, var(--line));
+  background: color-mix(in srgb, var(--green) 8%, var(--surface));
+}
+
+.admin-broadcast-btn {
+  min-height: 40px;
+  padding-inline: 14px;
+  box-shadow: none;
+}
+
 .admin-view-switch {
   justify-self: end;
   display: inline-flex;
@@ -1460,13 +1749,13 @@ textarea {
 }
 
 .admin-users-data-table {
-  min-width: 0;
+  min-width: 1120px;
   table-layout: fixed;
 }
 
 .admin-users-data-table th:nth-child(1),
 .admin-users-data-table td:nth-child(1) {
-  width: 220px;
+  width: 250px;
 }
 
 .admin-users-data-table th:nth-child(2),
@@ -1476,7 +1765,7 @@ textarea {
 
 .admin-users-data-table th:nth-child(3),
 .admin-users-data-table td:nth-child(3) {
-  width: 210px;
+  width: 230px;
 }
 
 .admin-users-data-table th:nth-child(4),
@@ -1486,7 +1775,7 @@ textarea {
 
 .admin-users-data-table th:nth-child(5),
 .admin-users-data-table td:nth-child(5) {
-  width: 124px;
+  width: 180px;
 }
 
 .admin-users-data-table th:nth-child(6),
@@ -1496,10 +1785,10 @@ textarea {
 
 .admin-users-data-table th:nth-child(7),
 .admin-users-data-table td:nth-child(7) {
-  width: 190px;
+  width: 250px;
 }
 
-.admin-users-data-table td {
+.admin-users-data-table td:not(:last-child) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1751,10 +2040,13 @@ textarea {
 .user-row .admin-actions {
   display: grid;
   grid-template-columns: 1fr;
+  align-content: start;
+  min-width: 188px;
 }
 
 .user-row .admin-actions .panel-btn {
-  min-width: 130px;
+  min-width: 170px;
+  justify-content: flex-start;
 }
 
 .admin-protected {
@@ -1847,6 +2139,15 @@ textarea {
   color: var(--green);
   background: var(--soft-green);
   border-radius: 8px;
+}
+
+.user-table-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.user-table-actions .admin-protected {
+  min-height: 34px;
 }
 
 .admin-activity-icon svg {
@@ -2620,8 +2921,27 @@ textarea {
     border-bottom: 1px solid var(--line);
   }
 
-  .admin-nav {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .admin-nav,
+  .crm-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .crm-wide {
+    grid-column: auto;
+  }
+
+  .admin-toolbar,
+  .admin-toolbar-actions {
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+
+  .admin-toolbar {
+    flex-direction: column;
+  }
+
+  .admin-search {
+    width: 100%;
   }
 
   .admin-list-head {
@@ -2715,7 +3035,8 @@ textarea {
 
   .nav a,
   .nav button,
-  .top-actions > button {
+  .top-actions > button,
+  .top-actions > .lang-select {
     justify-content: center;
     min-height: 44px;
     width: 100%;
@@ -2802,7 +3123,8 @@ textarea {
 
   .admin-shell {
     width: 100%;
-    height: 100vh;
+    min-height: 100vh;
+    height: auto;
     border-radius: 0;
   }
 

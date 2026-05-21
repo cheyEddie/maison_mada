@@ -1,6 +1,7 @@
 const { ObjectId } = require('mongodb');
 
 const { getDatabase } = require('../config/database');
+const arrondissementsTananarive = require('../data/arrondissements_tananarive.json');
 const { seedListings } = require('../data/seedListings');
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=900&q=80';
@@ -35,6 +36,45 @@ function cleanWaterSource(value) {
 
 function cleanInsideOutside(value) {
   return ['interieur', 'exterieur'].includes(value) ? value : 'interieur';
+}
+
+function normalizeDistrictText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/['’]/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+const arrondissementMatchers = arrondissementsTananarive.arrondissements
+  .flatMap((arrondissement) => arrondissement.quartiers.map((quartier) => ({
+    numero: arrondissement.numero,
+    nom: arrondissement.nom,
+    quartier,
+    normalized: normalizeDistrictText(quartier)
+  })))
+  .filter((item) => item.normalized.length >= 3)
+  .sort((a, b) => b.normalized.length - a.normalized.length);
+
+function resolveArrondissement(location) {
+  const normalizedLocation = normalizeDistrictText(location);
+  if (!normalizedLocation) return null;
+
+  const match = arrondissementMatchers.find((item) => (
+    normalizedLocation.includes(item.normalized) || item.normalized.includes(normalizedLocation)
+  ));
+
+  if (!match) return null;
+
+  return {
+    numero: match.numero,
+    nom: match.nom,
+    quartier: match.quartier,
+    label: `${match.numero}e arrondissement - ${match.nom}`
+  };
 }
 
 function cleanMapUrl(value) {
@@ -77,6 +117,10 @@ function mapEmbedUrlFromValue(value) {
     if (query) {
       return `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
     }
+
+    if (url.hostname.toLowerCase().replace(/^www\./, '') === 'maps.app.goo.gl') {
+      return `https://www.google.com/maps?q=${encodeURIComponent(url.href)}&output=embed`;
+    }
   } catch (_error) {
     return '';
   }
@@ -109,6 +153,10 @@ async function mapPayload(value) {
   if (!mapEmbedUrl) {
     const expandedUrl = await expandGoogleMapsUrl(mapUrl);
     mapEmbedUrl = mapEmbedUrlFromValue(expandedUrl);
+  }
+
+  if (!mapEmbedUrl) {
+    mapEmbedUrl = `https://www.google.com/maps?q=${encodeURIComponent(mapUrl)}&output=embed`;
   }
 
   return {
@@ -156,6 +204,14 @@ function isHouseRental(body) {
   return String(body.dealType) === 'location' && String(body.propertyType) === 'maison';
 }
 
+function isCommercialPremises(body) {
+  return String(body.propertyType) === 'local_commercial';
+}
+
+function isPersonalAllowedListing(body) {
+  return isHouseRental(body) || (String(body.dealType) === 'location' && isCommercialPremises(body));
+}
+
 function validateListingRights(body, user) {
   if (user.role !== 'admin' && user.identityVerified !== true) {
     const error = new Error('Votre compte doit etre verifie avant de publier une annonce');
@@ -164,9 +220,9 @@ function validateListingRights(body, user) {
   }
 
   if (user.role === 'admin' || user.accountType === 'agence') return;
-  if (isHouseRental(body)) return;
+  if (isPersonalAllowedListing(body)) return;
 
-  const error = new Error('Un compte particulier peut publier uniquement des maisons en location');
+  const error = new Error('Un compte particulier peut publier uniquement des maisons ou locaux commerciaux en location');
   error.status = 403;
   throw error;
 }
@@ -226,9 +282,13 @@ async function listingPayload(body, user, files) {
     }
   }
 
+  const location = String(body.location).trim();
+  const commercialPremises = isCommercialPremises(body);
+
   return {
     title: String(body.title).trim(),
-    location: String(body.location).trim(),
+    location,
+    arrondissement: resolveArrondissement(location),
     mapUrl: map.mapUrl,
     mapEmbedUrl: map.mapEmbedUrl,
     dealType: String(body.dealType),
@@ -238,10 +298,10 @@ async function listingPayload(body, user, files) {
     area: isHouseRental(body) ? 0 : cleanNumber(body.area),
     description: String(body.description || '').trim(),
     hasElectricity: cleanBoolean(body.hasElectricity),
-    waterSource: cleanWaterSource(body.waterSource),
-    hasTapWater: cleanWaterSource(body.waterSource) !== 'exterieur',
-    showerLocation: cleanInsideOutside(body.showerLocation || body.showerWcLocation),
-    wcLocation: cleanInsideOutside(body.wcLocation || body.showerWcLocation),
+    waterSource: commercialPremises ? '' : cleanWaterSource(body.waterSource),
+    hasTapWater: commercialPremises ? false : cleanWaterSource(body.waterSource) !== 'exterieur',
+    showerLocation: commercialPremises ? '' : cleanInsideOutside(body.showerLocation || body.showerWcLocation),
+    wcLocation: commercialPremises ? '' : cleanInsideOutside(body.wcLocation || body.showerWcLocation),
     hasMotorbikeAccess: cleanBoolean(body.hasMotorbikeAccess),
     hasCarAccess: cleanBoolean(body.hasCarAccess),
     isAvailable: cleanBoolean(body.isAvailable),
@@ -273,6 +333,10 @@ async function listingUpdatePayload(body, files, existingListing, user) {
       payload[field] = String(body[field]).trim();
     }
   });
+
+  if (payload.location !== undefined) {
+    payload.arrondissement = resolveArrondissement(payload.location);
+  }
 
   numberFields.forEach((field) => {
     if (body[field] !== undefined && body[field] !== '') {
@@ -315,6 +379,12 @@ async function listingUpdatePayload(body, files, existingListing, user) {
   const nextListing = { ...existingListing, ...payload };
   validateListingRights(nextListing, user);
   if (isHouseRental(nextListing)) payload.area = 0;
+  if (isCommercialPremises(nextListing)) {
+    payload.waterSource = '';
+    payload.hasTapWater = false;
+    payload.showerLocation = '';
+    payload.wcLocation = '';
+  }
 
   payload.updatedAt = new Date();
   return payload;
@@ -425,6 +495,22 @@ async function ensureUtilityFields() {
       }
     ]
   );
+}
+
+async function ensureListingArrondissements() {
+  const cursor = listings().find({});
+
+  for await (const listing of cursor) {
+    const arrondissement = resolveArrondissement(listing.location);
+    const currentLabel = listing.arrondissement?.label || '';
+    const nextLabel = arrondissement?.label || '';
+    if (currentLabel === nextLabel) continue;
+
+    await listings().updateOne(
+      { _id: listing._id },
+      { $set: { arrondissement } }
+    );
+  }
 }
 
 async function ensureAvailabilityFields() {
@@ -599,6 +685,26 @@ async function updateListing(id, user, body, files) {
   return result;
 }
 
+async function updateListingAsAdmin(id, user, body, files) {
+  if (!ObjectId.isValid(id)) return null;
+
+  const existingListing = await listings().findOne({ _id: new ObjectId(id) });
+  if (!existingListing) return null;
+
+  const payload = await listingUpdatePayload(body, files, existingListing, user);
+  if (!Object.keys(payload).length) {
+    const error = new Error('Aucune donnee a modifier');
+    error.status = 400;
+    throw error;
+  }
+
+  return listings().findOneAndUpdate(
+    { _id: existingListing._id },
+    { $set: payload },
+    { returnDocument: 'after' }
+  );
+}
+
 async function moderateListing(id, status, reason = '') {
   const allowed = ['approved', 'rejected', 'pending'];
   if (!allowed.includes(status)) {
@@ -664,6 +770,7 @@ module.exports = {
   ensureAvailabilityFields,
   ensureImageArrays,
   ensureListingIndexes,
+  ensureListingArrondissements,
   ensureOwnerPhones,
   ensureReferenceFormat,
   ensureReferences,
@@ -678,5 +785,6 @@ module.exports = {
   removeDeprecatedFields,
   seedListingsIfEmpty,
   updateListingFeatured,
-  updateListing
+  updateListing,
+  updateListingAsAdmin
 };

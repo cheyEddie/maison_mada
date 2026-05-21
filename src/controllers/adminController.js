@@ -9,6 +9,7 @@ const {
   deleteListingAsAdmin,
   findAdminListings,
   moderateListing,
+  updateListingAsAdmin,
   updateListingFeatured
 } = require('../models/listingModel');
 
@@ -76,6 +77,38 @@ async function usersNotify(req, res, next) {
       label: 'Message admin envoye'
     });
     res.status(201).json(notification);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function usersNotifyAll(req, res, next) {
+  try {
+    const message = String(req.body.message || '').trim();
+    if (!message) {
+      res.status(400).json({ message: 'Message obligatoire' });
+      return;
+    }
+
+    const recipients = (await listUsers()).filter((user) => user.role !== 'admin');
+    const notifications = await Promise.all(recipients.map((user) => createNotification({
+      userId: user._id,
+      actorId: req.user._id,
+      type: 'admin.message',
+      title: 'Message de l’administration',
+      message,
+      metadata: { source: 'admin', broadcast: true }
+    })));
+    const sentCount = notifications.filter(Boolean).length;
+
+    await logUserActivity({
+      userId: req.user._id,
+      actorId: req.user._id,
+      type: 'admin.notification_broadcast',
+      label: `Message admin envoye a ${sentCount} utilisateurs`
+    });
+
+    res.status(201).json({ count: sentCount });
   } catch (error) {
     next(error);
   }
@@ -170,6 +203,27 @@ async function listingsFeatured(req, res, next) {
   }
 }
 
+async function listingsUpdate(req, res, next) {
+  try {
+    const listing = await updateListingAsAdmin(req.params.id, req.user, req.body, req.files || []);
+    if (!listing) {
+      res.status(404).json({ message: 'Annonce introuvable' });
+      return;
+    }
+
+    await logUserActivity({
+      userId: listing.ownerId,
+      actorId: req.user._id,
+      type: 'admin.listing_update',
+      label: `Modification admin de ${listing.reference || listing.title}`,
+      metadata: { listingId: String(listing._id), reference: listing.reference, title: listing.title }
+    });
+    res.json(listing);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function listingsDestroy(req, res, next) {
   try {
     const listing = (await findAdminListings({ limit: 100 }))
@@ -200,9 +254,11 @@ module.exports = {
   listingsFeatured,
   listingsIndex,
   listingsModerate,
+  listingsUpdate,
   usersDestroy,
   usersActivities,
   usersIndex,
   usersNotify,
+  usersNotifyAll,
   usersUpdate
 };

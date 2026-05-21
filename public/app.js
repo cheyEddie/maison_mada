@@ -5,8 +5,11 @@ const state = {
   favorites: new Set(JSON.parse(localStorage.getItem('maisonMadaFavorites') || '[]')),
   afterAuth: null,
   dashboardFilter: 'all',
-  adminTab: 'listings',
+  adminTab: 'overview',
   adminView: 'table',
+  adminListingFilter: 'all',
+  adminUserFilter: 'all',
+  adminSearch: '',
   memberListingsData: [],
   notificationsData: [],
   adminListingsData: [],
@@ -20,8 +23,11 @@ const state = {
   unreadChatConversations: new Set(),
   activeConversationId: '',
   chatQuickFilter: 'all',
+  adminCharts: {},
   socket: null,
+  notificationPoll: null,
   editingListingId: null,
+  editingListingAsAdmin: false,
   lang: localStorage.getItem('maisonMadaLang') || 'fr'
 };
 
@@ -60,6 +66,7 @@ const els = {
   adminModal: document.querySelector('#adminModal'),
   adminStats: document.querySelector('#adminStats'),
   adminSectionTitle: document.querySelector('#adminSectionTitle'),
+  adminOverview: document.querySelector('#adminOverview'),
   adminListings: document.querySelector('#adminListings'),
   adminUsers: document.querySelector('#adminUsers'),
   adminActivityPanel: document.querySelector('#adminActivityPanel'),
@@ -77,10 +84,8 @@ const els = {
   memberProfileSubtitle: document.querySelector('#memberProfileSubtitle'),
   memberProfileContent: document.querySelector('#memberProfileContent'),
   dashboardStats: document.querySelector('#dashboardStats'),
-  langToggle: document.querySelector('#langToggle'),
+  langSelect: document.querySelector('#langSelect'),
   menuToggle: document.querySelector('#menuToggle'),
-  langFlag: document.querySelector('#langFlag'),
-  langCode: document.querySelector('#langCode'),
   themeToggle: document.querySelector('#themeToggle'),
   notificationsOpenButton: document.querySelector('#notificationsOpenButton'),
   notificationsQuickPanel: document.querySelector('#notificationsQuickPanel'),
@@ -115,8 +120,6 @@ const languages = {
   mg: { code: 'MG', flag: '🇲🇬', htmlLang: 'mg' },
   en: { code: 'EN', flag: '🇬🇧', htmlLang: 'en' }
 };
-
-const languageOrder = ['fr', 'mg', 'en'];
 
 if (!languages[state.lang]) state.lang = 'fr';
 
@@ -173,6 +176,7 @@ const i18n = {
     'common.apartments': 'Appartements',
     'common.land': 'Terrain',
     'common.lands': 'Terrains',
+    'common.commercialPremises': 'Local commercial',
     'common.listings': 'annonces',
     'sections.featured': 'Annonces à la une',
     'sections.otherListings': 'Autres annonces',
@@ -192,6 +196,7 @@ const i18n = {
     'actions.approve': 'Approuver',
     'actions.reject': 'Refuser',
     'actions.delete': 'Supprimer',
+    'actions.edit': 'Modifier',
     'actions.close': 'Fermer',
     'actions.cancel': 'Annuler',
     'actions.send': 'Envoyer',
@@ -201,6 +206,8 @@ const i18n = {
     'notifications.adminSend': 'Envoyer une notification',
     'notifications.message': 'Message',
     'notifications.sent': 'Notification envoyée',
+    'notifications.broadcast': 'Message à tous',
+    'notifications.broadcastSent': 'Notification envoyée à {count} utilisateurs',
     'promo.title': 'Publiez gratuitement',
     'promo.text': 'Ajoutez une annonce avec vos propres photos depuis votre appareil.',
     'auth.login': 'Connexion',
@@ -277,8 +284,25 @@ const i18n = {
     'dashboard.totalValue': 'Valeur totale',
     'admin.title': 'Administration',
     'admin.subtitle': 'Modération des annonces et gestion des comptes.',
+    'admin.crm': 'CRM',
+    'admin.overview': 'Vue CRM',
     'admin.listings': 'Annonces',
     'admin.users': 'Comptes',
+    'admin.search': 'Rechercher',
+    'admin.searchPlaceholder': 'Nom, email, téléphone, référence...',
+    'admin.pipeline': 'Pipeline publications',
+    'admin.customerSegments': 'Segments clients',
+    'admin.quickActions': 'Actions rapides',
+    'admin.recentUsers': 'Nouveaux comptes',
+    'admin.recentListings': 'Publications récentes',
+    'admin.noData': 'Aucune donnée disponible.',
+    'admin.showListings': 'Voir les annonces',
+    'admin.showUsers': 'Voir les comptes',
+    'admin.allStatuses': 'Tous les statuts',
+    'admin.allAccounts': 'Tous les comptes',
+    'admin.onlyPending': 'À traiter',
+    'admin.onlyVerified': 'Vérifiés',
+    'admin.onlyUnverified': 'Non vérifiés',
     'admin.status': 'Statut',
     'admin.role': 'Rôle',
     'admin.pending': 'En attente',
@@ -291,6 +315,7 @@ const i18n = {
     'admin.waiting': 'À modérer',
     'admin.admins': 'Admins',
     'admin.owner': 'Auteur',
+    'admin.arrondissement': 'Arrondissement',
     'admin.userReference': 'Référence utilisateur',
     'admin.refusalReason': 'Raison du refus',
     'admin.rejectReasonPrompt': 'Raison du refus de cette publication ?',
@@ -318,6 +343,7 @@ const i18n = {
     'profile.viewOwner': 'Voir le profil',
     'admin.tableView': 'Tableau',
     'admin.simpleView': 'Simple',
+    'admin.usersTools': 'Actions comptes',
     'empty.loading': 'Chargement...',
     'empty.noListing': 'Aucune annonce trouvée.',
     'empty.noCategory': 'Aucune annonce dans cette catégorie.',
@@ -397,6 +423,7 @@ const i18n = {
     'common.apartments': 'Apartments',
     'common.land': 'Land',
     'common.lands': 'Land',
+    'common.commercialPremises': 'Commercial premises',
     'common.listings': 'listings',
     'sections.featured': 'Featured listings',
     'sections.otherListings': 'Other listings',
@@ -416,6 +443,7 @@ const i18n = {
     'actions.approve': 'Approve',
     'actions.reject': 'Reject',
     'actions.delete': 'Delete',
+    'actions.edit': 'Edit',
     'actions.close': 'Close',
     'actions.cancel': 'Cancel',
     'actions.send': 'Send',
@@ -425,6 +453,8 @@ const i18n = {
     'notifications.adminSend': 'Send a notification',
     'notifications.message': 'Message',
     'notifications.sent': 'Notification sent',
+    'notifications.broadcast': 'Message everyone',
+    'notifications.broadcastSent': 'Notification sent to {count} users',
     'promo.title': 'Publish for free',
     'promo.text': 'Add a listing with your own photos from your device.',
     'auth.login': 'Log in',
@@ -501,8 +531,25 @@ const i18n = {
     'dashboard.totalValue': 'Total value',
     'admin.title': 'Administration',
     'admin.subtitle': 'Listing moderation and account management.',
+    'admin.crm': 'CRM',
+    'admin.overview': 'CRM view',
     'admin.listings': 'Listings',
     'admin.users': 'Accounts',
+    'admin.search': 'Search',
+    'admin.searchPlaceholder': 'Name, email, phone, reference...',
+    'admin.pipeline': 'Listings pipeline',
+    'admin.customerSegments': 'Customer segments',
+    'admin.quickActions': 'Quick actions',
+    'admin.recentUsers': 'New accounts',
+    'admin.recentListings': 'Recent listings',
+    'admin.noData': 'No data available.',
+    'admin.showListings': 'View listings',
+    'admin.showUsers': 'View accounts',
+    'admin.allStatuses': 'All statuses',
+    'admin.allAccounts': 'All accounts',
+    'admin.onlyPending': 'To process',
+    'admin.onlyVerified': 'Verified',
+    'admin.onlyUnverified': 'Unverified',
     'admin.status': 'Status',
     'admin.role': 'Role',
     'admin.pending': 'Pending',
@@ -515,6 +562,7 @@ const i18n = {
     'admin.waiting': 'To moderate',
     'admin.admins': 'Admins',
     'admin.owner': 'Owner',
+    'admin.arrondissement': 'District',
     'admin.userReference': 'User reference',
     'admin.refusalReason': 'Refusal reason',
     'admin.rejectReasonPrompt': 'Reason for refusing this listing?',
@@ -542,6 +590,7 @@ const i18n = {
     'profile.viewOwner': 'View profile',
     'admin.tableView': 'Table',
     'admin.simpleView': 'Simple',
+    'admin.usersTools': 'Account actions',
     'empty.loading': 'Loading...',
     'empty.noListing': 'No listings found.',
     'empty.noCategory': 'No listings in this category.',
@@ -621,6 +670,7 @@ const i18n = {
     'common.apartments': 'Appartement',
     'common.land': 'Tany',
     'common.lands': 'Tany',
+    'common.commercialPremises': 'Trano fivarotana',
     'common.listings': 'doka',
     'sections.featured': 'Doka asongadina',
     'sections.otherListings': 'Doka hafa',
@@ -640,6 +690,7 @@ const i18n = {
     'actions.approve': 'Ekena',
     'actions.reject': 'Lavina',
     'actions.delete': 'Fafana',
+    'actions.edit': 'Hanova',
     'actions.close': 'Hidio',
     'actions.cancel': 'Foano',
     'actions.send': 'Alefaso',
@@ -649,6 +700,8 @@ const i18n = {
     'notifications.adminSend': 'Handefa fampandrenesana',
     'notifications.message': 'Hafatra',
     'notifications.sent': 'Nalefa ny fampandrenesana',
+    'notifications.broadcast': 'Hafatra ho an’ny rehetra',
+    'notifications.broadcastSent': 'Nalefa tamin’ny mpampiasa {count} ny fampandrenesana',
     'promo.title': 'Hamoaka maimaim-poana',
     'promo.text': 'Ampidiro miaraka amin’ny sarinao avy amin’ny fitaovanao ny doka.',
     'auth.login': 'Hiditra',
@@ -725,8 +778,25 @@ const i18n = {
     'dashboard.totalValue': 'Tontalin’ny vidiny',
     'admin.title': 'Fitantanana',
     'admin.subtitle': 'Fanamarinana doka sy fitantanana kaonty.',
+    'admin.crm': 'CRM',
+    'admin.overview': 'Topimaso CRM',
     'admin.listings': 'Doka',
     'admin.users': 'Kaonty',
+    'admin.search': 'Hikaroka',
+    'admin.searchPlaceholder': 'Anarana, email, finday, reference...',
+    'admin.pipeline': 'Pipeline doka',
+    'admin.customerSegments': 'Sokajy mpanjifa',
+    'admin.quickActions': 'Asa haingana',
+    'admin.recentUsers': 'Kaonty vaovao',
+    'admin.recentListings': 'Doka farany',
+    'admin.noData': 'Tsy misy angona.',
+    'admin.showListings': 'Hijery doka',
+    'admin.showUsers': 'Hijery kaonty',
+    'admin.allStatuses': 'Sata rehetra',
+    'admin.allAccounts': 'Kaonty rehetra',
+    'admin.onlyPending': 'Ho karakaraina',
+    'admin.onlyVerified': 'Voamarina',
+    'admin.onlyUnverified': 'Tsy voamarina',
     'admin.status': 'Sata',
     'admin.role': 'Andraikitra',
     'admin.pending': 'Miandry',
@@ -739,6 +809,7 @@ const i18n = {
     'admin.waiting': 'Miandry fanamarinana',
     'admin.admins': 'Admin',
     'admin.owner': 'Mpamoaka',
+    'admin.arrondissement': 'Arrondissement',
     'admin.userReference': 'Laharan’ny mpampiasa',
     'admin.refusalReason': 'Antony nandavana',
     'admin.rejectReasonPrompt': 'Antony handavana ity doka ity?',
@@ -766,6 +837,7 @@ const i18n = {
     'profile.viewOwner': 'Hijery profil',
     'admin.tableView': 'Tabilao',
     'admin.simpleView': 'Tsotra',
+    'admin.usersTools': 'Asan’ny kaonty',
     'empty.loading': 'Miandry...',
     'empty.noListing': 'Tsy misy doka hita.',
     'empty.noCategory': 'Tsy misy doka amin’ity sokajy ity.',
@@ -816,8 +888,7 @@ function escapeHtml(value) {
 function translatePage() {
   const language = languages[state.lang] || languages.fr;
   document.documentElement.lang = language.htmlLang;
-  els.langFlag.textContent = language.flag;
-  els.langCode.textContent = language.code;
+  if (els.langSelect) els.langSelect.value = state.lang;
 
   document.querySelectorAll('[data-i18n]').forEach((element) => {
     element.textContent = t(element.dataset.i18n);
@@ -1088,6 +1159,11 @@ function renderNotificationsQuick() {
   icons();
 }
 
+function refreshNotificationsSoon() {
+  if (!state.user) return;
+  window.setTimeout(() => loadNotifications().catch(() => {}), 600);
+}
+
 async function loadNotifications({ markRead = false } = {}) {
   state.notificationsData = await api('/api/auth/notifications', { headers: headers() });
   renderNotifications();
@@ -1099,6 +1175,33 @@ async function loadNotifications({ markRead = false } = {}) {
     renderNotifications();
     renderNotificationsQuick();
   }
+}
+
+function stopNotificationPolling() {
+  if (!state.notificationPoll) return;
+  window.clearInterval(state.notificationPoll);
+  state.notificationPoll = null;
+}
+
+function startNotificationPolling() {
+  if (!state.user || state.notificationPoll) return;
+  loadNotifications().catch(() => {});
+  state.notificationPoll = window.setInterval(() => {
+    if (!state.user) {
+      stopNotificationPolling();
+      return;
+    }
+    loadNotifications().catch(() => {});
+  }, 30000);
+}
+
+function resetNotificationsState() {
+  stopNotificationPolling();
+  state.notificationsData = [];
+  if (els.memberNotifications) els.memberNotifications.innerHTML = '';
+  if (els.notificationsQuickList) els.notificationsQuickList.innerHTML = '';
+  els.notificationsOpenButton.classList.remove('has-unread');
+  els.notificationsOpenButton.dataset.unreadCount = '';
 }
 
 async function openNotificationsPanel() {
@@ -1166,11 +1269,25 @@ function requestAdminMessage(user) {
   });
 }
 
+function requestBroadcastMessage() {
+  const recipients = state.adminUsersData.filter((user) => user.role !== 'admin').length;
+  return promptTextarea({
+    title: t('notifications.broadcast'),
+    text: `${recipients} utilisateurs recevront ce message.`,
+    placeholder: 'Votre message pour tous les utilisateurs...',
+    confirmText: t('actions.send')
+  });
+}
+
 function closeAdmin() {
   closeAdminActivity();
   closeAdminProfile();
+  if (!els.adminModal) return;
   els.adminModal.classList.remove('is-open');
   els.adminModal.hidden = true;
+  els.profilePage.hidden = true;
+  document.querySelector('.hero').hidden = false;
+  document.querySelector('.page-shell').hidden = false;
 }
 
 function closeMap() {
@@ -1212,10 +1329,7 @@ async function openAdmin() {
     return;
   }
 
-  closeMember();
-  els.adminModal.hidden = false;
-  els.adminModal.classList.add('is-open');
-  await loadAdminData();
+  window.location.href = '/admin.html';
 }
 
 function mapQuery(location) {
@@ -1230,7 +1344,21 @@ function listingMapUrl(listing) {
   return listing.mapUrl || fallbackMapUrl(listing.location);
 }
 
+function isLocationFallbackEmbed(listing) {
+  if (!listing.mapEmbedUrl || !listing.mapUrl) return false;
+  try {
+    const url = new URL(listing.mapEmbedUrl);
+    const embeddedQuery = url.searchParams.get('q') || '';
+    return embeddedQuery.trim().toLowerCase() === mapQuery(listing.location).trim().toLowerCase();
+  } catch (_error) {
+    return false;
+  }
+}
+
 function listingMapEmbedUrl(listing) {
+  if (isLocationFallbackEmbed(listing)) {
+    return mapEmbedSrc(listing.location, listing.mapUrl);
+  }
   return listing.mapEmbedUrl || mapEmbedSrc(listing.location, listing.mapUrl);
 }
 
@@ -1238,10 +1366,10 @@ function isGoogleMapsUrl(value) {
   try {
     const url = new URL(String(value || '').trim());
     const host = url.hostname.toLowerCase().replace(/^www\./, '');
-    const googleMapsHosts = ['google.com', 'maps.google.com', 'maps.app.goo.gl', 'goo.gl'];
+    const googleDomain = /(^|\.)google\.[a-z.]+$/.test(host);
     return ['http:', 'https:'].includes(url.protocol)
-      && googleMapsHosts.includes(host)
-      && (host === 'maps.app.goo.gl' || host === 'maps.google.com' || url.pathname.startsWith('/maps'));
+      && (googleDomain || host === 'maps.app.goo.gl' || host === 'goo.gl')
+      && (host === 'maps.app.goo.gl' || host === 'goo.gl' || host.startsWith('maps.google.') || url.pathname.startsWith('/maps'));
   } catch (_error) {
     return false;
   }
@@ -1281,11 +1409,15 @@ function mapEmbedSrc(location, mapUrl = '') {
     if (query) {
       return `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
     }
+
+    if (url.hostname.toLowerCase().replace(/^www\./, '') === 'maps.app.goo.gl') {
+      return `https://www.google.com/maps?q=${encodeURIComponent(url.href)}&output=embed`;
+    }
   } catch (_error) {
-    return detailMapSrc(location);
+    return mapUrl ? `https://www.google.com/maps?q=${encodeURIComponent(mapUrl)}&output=embed` : detailMapSrc(location);
   }
 
-  return detailMapSrc(location);
+  return mapUrl ? `https://www.google.com/maps?q=${encodeURIComponent(mapUrl)}&output=embed` : detailMapSrc(location);
 }
 
 function phoneHref(phone) {
@@ -1358,6 +1490,20 @@ function isHouseRental(listing) {
   return listing.dealType === 'location' && listing.propertyType === 'maison';
 }
 
+function isCommercialPremises(listing) {
+  return listing.propertyType === 'local_commercial';
+}
+
+function propertyTypeLabel(value) {
+  const labels = {
+    maison: t('common.house'),
+    appartement: t('common.apartment'),
+    terrain: t('common.land'),
+    local_commercial: t('common.commercialPremises')
+  };
+  return labels[value] || value || '-';
+}
+
 function areaMarkup(listing) {
   return isHouseRental(listing) ? '' : `<span><i data-lucide="scan"></i>${listing.area} m²</span>`;
 }
@@ -1418,16 +1564,25 @@ function applyListingFormRules(form) {
   const propertyField = form.querySelector('[data-property-field]');
   const areaField = form.querySelector('[data-area-field]');
   const houseFields = form.querySelectorAll('[data-house-field]');
+  const residentialUtilityFields = form.querySelectorAll('[data-residential-utility]');
+  const propertySelect = form.elements.propertyType;
 
   if (personal) {
     form.elements.dealType.value = 'location';
-    form.elements.propertyType.value = 'maison';
+    if (!['maison', 'local_commercial'].includes(propertySelect.value)) {
+      propertySelect.value = 'maison';
+    }
   }
 
   form.elements.dealType.disabled = personal;
-  form.elements.propertyType.disabled = personal;
   dealField.hidden = personal;
-  propertyField.hidden = personal;
+  propertyField.hidden = false;
+
+  Array.from(propertySelect.options).forEach((option) => {
+    const personalAllowed = ['maison', 'local_commercial'].includes(option.value);
+    option.disabled = personal && !personalAllowed;
+    option.hidden = personal && !personalAllowed;
+  });
 
   const hideArea = form.elements.dealType.value === 'location' && form.elements.propertyType.value === 'maison';
   areaField.hidden = hideArea;
@@ -1445,6 +1600,20 @@ function applyListingFormRules(form) {
   if (!house) {
     form.elements.isAvailable.value = 'true';
   }
+
+  const commercialPremises = isCommercialPremises({ propertyType: form.elements.propertyType.value });
+  residentialUtilityFields.forEach((field) => {
+    field.hidden = commercialPremises;
+    field.querySelectorAll('select').forEach((select) => {
+      select.disabled = commercialPremises;
+    });
+  });
+
+  if (commercialPremises) {
+    form.elements.waterSource.value = 'exterieur';
+    form.elements.showerLocation.value = 'exterieur';
+    form.elements.wcLocation.value = 'exterieur';
+  }
 }
 
 function openListingDetail(listing) {
@@ -1456,7 +1625,7 @@ function openListingDetail(listing) {
   const callLink = ownerPhoneLink(listing, 'primary-btn call-link');
   const title = escapeHtml(listing.title);
   const location = escapeHtml(listing.location);
-  const propertyType = escapeHtml(listing.propertyType);
+  const propertyType = escapeHtml(propertyTypeLabel(listing.propertyType));
   const description = escapeHtml(listing.description || t('listing.noDescription'));
   els.detailTitle.textContent = listing.title;
   els.detailReference.innerHTML = `${t('listing.reference')} ${listing.reference || ''} ${referenceButton(listing.reference)}`;
@@ -1487,9 +1656,11 @@ function openListingDetail(listing) {
         </div>
         <div class="detail-utilities">
           <span><i data-lucide="${hasElectricity ? 'zap' : 'zap-off'}"></i>${t('listing.electricity')} : ${hasElectricity ? t('listing.yes') : t('listing.no')}</span>
-          <span><i data-lucide="droplets"></i>${t('listing.waterSource')} : ${waterSourceLabel(listing)}</span>
-          <span><i data-lucide="bath"></i>${t('listing.shower')} : ${insideOutsideLabel(listing.showerLocation || listing.showerWcLocation)}</span>
-          <span><i data-lucide="toilet"></i>${t('listing.wc')} : ${insideOutsideLabel(listing.wcLocation || listing.showerWcLocation)}</span>
+          ${isCommercialPremises(listing) ? '' : `
+            <span><i data-lucide="droplets"></i>${t('listing.waterSource')} : ${waterSourceLabel(listing)}</span>
+            <span><i data-lucide="bath"></i>${t('listing.shower')} : ${insideOutsideLabel(listing.showerLocation || listing.showerWcLocation)}</span>
+            <span><i data-lucide="toilet"></i>${t('listing.wc')} : ${insideOutsideLabel(listing.wcLocation || listing.showerWcLocation)}</span>
+          `}
           <span><i data-lucide="${hasMotorbikeAccess ? 'bike' : 'circle-slash'}"></i>${t('listing.motorbikeAccess')} : ${hasMotorbikeAccess ? t('listing.yes') : t('listing.no')}</span>
           <span><i data-lucide="${hasCarAccess ? 'car' : 'circle-slash'}"></i>${t('listing.carAccess')} : ${hasCarAccess ? t('listing.yes') : t('listing.no')}</span>
         </div>
@@ -1595,6 +1766,34 @@ function memberItem(listing) {
   `;
 }
 
+function openEditListing(listing, options = {}) {
+  if (!listing) return;
+
+  state.editingListingId = String(listing._id);
+  state.editingListingAsAdmin = Boolean(options.admin);
+  els.editStatus.textContent = '';
+  els.editForm.elements.title.value = listing.title || '';
+  els.editForm.elements.location.value = listing.location || '';
+  els.editForm.elements.mapUrl.value = listing.mapUrl || '';
+  els.editForm.elements.dealType.value = listing.dealType || 'location';
+  els.editForm.elements.propertyType.value = listing.propertyType || 'maison';
+  els.editForm.elements.price.value = listing.price || 0;
+  els.editForm.elements.area.value = listing.area || 0;
+  els.editForm.elements.bedrooms.value = listing.bedrooms || 0;
+  els.editForm.elements.description.value = listing.description || '';
+  els.editForm.elements.hasElectricity.value = Boolean(listing.hasElectricity) ? 'true' : 'false';
+  els.editForm.elements.waterSource.value = listing.waterSource || (listing.hasTapWater === false ? 'exterieur' : 'jirama');
+  els.editForm.elements.showerLocation.value = listing.showerLocation || listing.showerWcLocation || 'interieur';
+  els.editForm.elements.wcLocation.value = listing.wcLocation || listing.showerWcLocation || 'interieur';
+  els.editForm.elements.isAvailable.value = listing.isAvailable === false ? 'false' : 'true';
+  els.editForm.elements.hasMotorbikeAccess.checked = Boolean(listing.hasMotorbikeAccess);
+  els.editForm.elements.hasCarAccess.checked = Boolean(listing.hasCarAccess);
+  els.editForm.elements.image.value = '';
+  els.editForm.elements.video.value = '';
+  applyListingFormRules(els.editForm);
+  els.editModal.showModal();
+}
+
 function renderDashboardStats(listings) {
   const total = listings.length;
   const location = listings.filter((listing) => listing.dealType === 'location').length;
@@ -1665,15 +1864,38 @@ function openMemberProfile() {
 }
 
 function showHomePage() {
+  closeAdminActivity();
+  closeAdminProfile();
+  if (els.adminModal) {
+    els.adminModal.classList.remove('is-open');
+    els.adminModal.hidden = true;
+  }
   els.profilePage.hidden = true;
   document.querySelector('.hero').hidden = false;
   document.querySelector('.page-shell').hidden = false;
 }
 
 function showProfilePage() {
+  closeAdminActivity();
+  closeAdminProfile();
+  if (els.adminModal) {
+    els.adminModal.classList.remove('is-open');
+    els.adminModal.hidden = true;
+  }
   document.querySelector('.hero').hidden = true;
   document.querySelector('.page-shell').hidden = true;
   els.profilePage.hidden = false;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function showAdminPage() {
+  if (state.user?.role !== 'admin' || !els.adminModal) return;
+  els.profilePage.hidden = true;
+  document.querySelector('.hero').hidden = true;
+  document.querySelector('.page-shell').hidden = true;
+  els.adminModal.hidden = false;
+  els.adminModal.classList.add('is-open');
+  await loadAdminData();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1735,20 +1957,26 @@ async function loadPublicProfile(userId) {
   }
 }
 
-function handleRoute() {
+async function handleRoute() {
   const profileMatch = window.location.hash.match(/^#profile\/(.+)$/);
   if (profileMatch) {
-    loadPublicProfile(profileMatch[1]);
+    await loadPublicProfile(profileMatch[1]);
     return;
   }
 
   const listingMatch = window.location.hash.match(/^#listing\/(.+)$/);
   if (listingMatch) {
     showHomePage();
-    loadSharedListing(listingMatch[1]);
-  } else {
-    showHomePage();
+    await loadSharedListing(listingMatch[1]);
+    return;
   }
+
+  if (state.user?.role === 'admin') {
+    window.location.href = '/admin.html';
+    return;
+  }
+
+  showHomePage();
 }
 
 function renderMemberListings() {
@@ -1817,6 +2045,7 @@ function activityLabel(activity) {
     'listing.update': 'Modification d’une annonce',
     'listing.delete': 'Suppression d’une annonce',
     'admin.user_update': 'Modification du compte par admin',
+    'admin.notification_broadcast': 'Message envoyé à tous les utilisateurs',
     'admin.listing_moderation': 'Modération d’une annonce',
     'admin.listing_featured': 'Mise à jour mise en avant',
     'admin.listing_delete': 'Suppression d’une annonce par admin'
@@ -1825,11 +2054,13 @@ function activityLabel(activity) {
 }
 
 function closeAdminActivity() {
+  if (!els.adminActivityPanel || !els.adminActivityList) return;
   els.adminActivityPanel.hidden = true;
   els.adminActivityList.innerHTML = '';
 }
 
 function closeAdminProfile() {
+  if (!els.adminProfilePanel || !els.adminProfileContent) return;
   els.adminProfilePanel.hidden = true;
   els.adminProfileContent.innerHTML = '';
 }
@@ -1927,15 +2158,76 @@ function openAdminProfile(userId) {
 function renderAdminStats() {
   const pending = state.adminListingsData.filter((listing) => listing.status === 'pending').length;
   const approved = state.adminListingsData.filter((listing) => listing.status === 'approved').length;
+  const rejected = state.adminListingsData.filter((listing) => listing.status === 'rejected').length;
   const admins = state.adminUsersData.filter((user) => user.role === 'admin').length;
+  const verifiedUsers = state.adminUsersData.filter((user) => user.role === 'admin' || user.identityVerified === true).length;
 
   els.adminStats.innerHTML = `
     <div class="admin-stat"><strong>${state.adminListingsData.length}</strong><span>${t('admin.totalListings')}</span></div>
     <div class="admin-stat warning"><strong>${pending}</strong><span>${t('admin.waiting')}</span></div>
     <div class="admin-stat"><strong>${state.adminUsersData.length}</strong><span>${t('admin.totalUsers')}</span></div>
-    <div class="admin-stat"><strong>${admins}</strong><span>${t('admin.admins')}</span></div>
+    <div class="admin-stat"><strong>${verifiedUsers}</strong><span>${t('admin.verified')}</span></div>
   `;
-  return { pending, approved };
+  return { pending, approved, rejected, admins, verifiedUsers };
+}
+
+function adminMatchesSearch(values) {
+  const query = state.adminSearch.trim().toLowerCase();
+  if (!query) return true;
+  return values.some((value) => String(value || '').toLowerCase().includes(query));
+}
+
+function filteredAdminListings() {
+  return state.adminListingsData.filter((listing) => {
+    const statusMatch = state.adminListingFilter === 'all' || listing.status === state.adminListingFilter;
+    const searchMatch = adminMatchesSearch([
+      listing.title,
+      listing.reference,
+      listing.location,
+      listing.arrondissement?.label,
+      listing.arrondissement?.quartier,
+      listing.ownerName,
+      listing.dealType,
+      listing.propertyType
+    ]);
+    return statusMatch && searchMatch;
+  });
+}
+
+function adminArrondissementLabel(listing) {
+  const arrondissement = listing.arrondissement;
+  if (!arrondissement?.numero && !arrondissement?.nom) return '-';
+  return arrondissement.label || `${arrondissement.numero ? `${arrondissement.numero}e arrondissement` : ''}${arrondissement.nom ? ` - ${arrondissement.nom}` : ''}`.trim();
+}
+
+function filteredAdminUsers() {
+  return state.adminUsersData.filter((user) => {
+    const verified = user.role === 'admin' || user.identityVerified === true;
+    const agency = user.accountType === 'agence';
+    const filterMatch =
+      state.adminUserFilter === 'all' ||
+      (state.adminUserFilter === 'admin' && user.role === 'admin') ||
+      (state.adminUserFilter === 'agence' && agency) ||
+      (state.adminUserFilter === 'particulier' && !agency) ||
+      (state.adminUserFilter === 'verified' && verified) ||
+      (state.adminUserFilter === 'unverified' && !verified);
+    const searchMatch = adminMatchesSearch([user.name, user.email, user.phone, user.reference, user.role, user.accountType]);
+    return filterMatch && searchMatch;
+  });
+}
+
+function adminFilterButton(type, value, label) {
+  const active = type === 'listing' ? state.adminListingFilter === value : state.adminUserFilter === value;
+  return `<button type="button" class="${active ? 'active' : ''}" data-admin-filter="${type}" data-filter-value="${value}">${label}</button>`;
+}
+
+function adminSearchBox() {
+  return `
+    <label class="admin-search">
+      <i data-lucide="search"></i>
+      <input type="search" data-admin-search value="${escapeHtml(state.adminSearch)}" placeholder="${t('admin.searchPlaceholder')}">
+    </label>
+  `;
 }
 
 function adminListingItem(listing) {
@@ -1952,6 +2244,7 @@ function adminListingItem(listing) {
         <div class="admin-row-meta">
           <span><i data-lucide="star"></i>${listing.featured ? t('admin.featured') : t('admin.notFeatured')}</span>
           <span><i data-lucide="map-pin"></i>${listing.location}</span>
+          <span><i data-lucide="map"></i>${t('admin.arrondissement')} : ${adminArrondissementLabel(listing)}</span>
           <span><i data-lucide="user"></i>${t('admin.owner')} : ${listing.ownerName || 'MaisonMada'}</span>
           <span><i data-lucide="calendar"></i>${formatDate(listing.createdAt)}</span>
         </div>
@@ -1959,6 +2252,7 @@ function adminListingItem(listing) {
       </div>
       <div class="admin-row-price">${price(listing.price, listing.dealType)}</div>
       <div class="admin-actions">
+        <button class="icon-btn" type="button" data-admin-edit-listing="${listing._id}" aria-label="${t('actions.edit')}" title="${t('actions.edit')}"><i data-lucide="pencil"></i></button>
         <button class="icon-btn featured-toggle ${listing.featured ? 'active' : ''}" type="button" data-admin-featured="${listing._id}" data-featured="${listing.featured ? 'false' : 'true'}" ${!approved && !listing.featured ? 'disabled' : ''} aria-label="${listing.featured ? t('actions.unfeature') : t('actions.feature')}" title="${listing.featured ? t('actions.unfeature') : t('actions.feature')}"><i data-lucide="star"></i></button>
         <button class="icon-btn" type="button" data-admin-approve="${listing._id}" ${approved ? 'disabled' : ''} aria-label="${t('actions.approve')}" title="${t('actions.approve')}"><i data-lucide="check"></i></button>
         <button class="icon-btn" type="button" data-admin-reject="${listing._id}" ${rejected ? 'disabled' : ''} aria-label="${t('actions.reject')}" title="${t('actions.reject')}"><i data-lucide="x"></i></button>
@@ -1977,11 +2271,13 @@ function adminListingSimpleItem(listing) {
       <div>
         <strong>${listing.title}</strong>
         <div class="muted">${listing.location}</div>
+        <div class="admin-meta">${t('admin.arrondissement')} : ${adminArrondissementLabel(listing)}</div>
         <div class="admin-meta">${t('admin.owner')} : ${listing.ownerName || 'MaisonMada'}</div>
         <div>${price(listing.price, listing.dealType)}</div>
         ${listing.moderationReason ? `<div class="admin-meta">${t('admin.refusalReason')} : ${listing.moderationReason}</div>` : ''}
       </div>
       <div class="admin-actions admin-simple-actions">
+        <button class="icon-btn" type="button" data-admin-edit-listing="${listing._id}" aria-label="${t('actions.edit')}" title="${t('actions.edit')}"><i data-lucide="pencil"></i></button>
         <button class="icon-btn featured-toggle ${listing.featured ? 'active' : ''}" type="button" data-admin-featured="${listing._id}" data-featured="${listing.featured ? 'false' : 'true'}" ${!approved && !listing.featured ? 'disabled' : ''} aria-label="${listing.featured ? t('actions.unfeature') : t('actions.feature')}" title="${listing.featured ? t('actions.unfeature') : t('actions.feature')}"><i data-lucide="star"></i></button>
         <button class="icon-btn" type="button" data-admin-approve="${listing._id}" ${approved ? 'disabled' : ''} aria-label="${t('actions.approve')}" title="${t('actions.approve')}"><i data-lucide="check"></i></button>
         <button class="icon-btn" type="button" data-admin-reject="${listing._id}" ${rejected ? 'disabled' : ''} aria-label="${t('actions.reject')}" title="${t('actions.reject')}"><i data-lucide="x"></i></button>
@@ -2005,10 +2301,12 @@ function adminListingTableRow(listing) {
       <td><span class="status-pill ${statusClass(listing.status)}">${statusLabel(listing.status)}</span></td>
       <td>${listing.ownerName || 'MaisonMada'}</td>
       <td>${listing.location}</td>
+      <td>${adminArrondissementLabel(listing)}</td>
       <td>${price(listing.price, listing.dealType)}</td>
       <td>${formatDate(listing.createdAt)}</td>
       <td>
         <div class="admin-actions admin-table-actions">
+          <button class="icon-btn" type="button" data-admin-edit-listing="${listing._id}" aria-label="${t('actions.edit')}" title="${t('actions.edit')}"><i data-lucide="pencil"></i></button>
           <button class="icon-btn featured-toggle ${listing.featured ? 'active' : ''}" type="button" data-admin-featured="${listing._id}" data-featured="${listing.featured ? 'false' : 'true'}" ${!approved && !listing.featured ? 'disabled' : ''} aria-label="${listing.featured ? t('actions.unfeature') : t('actions.feature')}" title="${listing.featured ? t('actions.unfeature') : t('actions.feature')}"><i data-lucide="star"></i></button>
           <button class="icon-btn" type="button" data-admin-approve="${listing._id}" ${approved ? 'disabled' : ''} aria-label="${t('actions.approve')}" title="${t('actions.approve')}"><i data-lucide="check"></i></button>
           <button class="icon-btn" type="button" data-admin-reject="${listing._id}" ${rejected ? 'disabled' : ''} aria-label="${t('actions.reject')}" title="${t('actions.reject')}"><i data-lucide="x"></i></button>
@@ -2125,10 +2423,232 @@ function adminViewSwitcher() {
   `;
 }
 
-function adminListingsSimple() {
-  const approved = state.adminListingsData.filter((listing) => listing.status === 'approved');
-  const pending = state.adminListingsData.filter((listing) => listing.status === 'pending');
-  const rejected = state.adminListingsData.filter((listing) => listing.status === 'rejected');
+function adminListingsToolbar() {
+  return `
+    <div class="admin-toolbar">
+      <div>
+        <strong>${t('admin.listings')}</strong>
+        <span>${filteredAdminListings().length} / ${state.adminListingsData.length}</span>
+      </div>
+      <div class="admin-toolbar-actions">
+        ${adminSearchBox()}
+        <div class="admin-filter-pills">
+          ${adminFilterButton('listing', 'all', t('admin.allStatuses'))}
+          ${adminFilterButton('listing', 'pending', t('admin.pending'))}
+          ${adminFilterButton('listing', 'approved', t('admin.approved'))}
+          ${adminFilterButton('listing', 'rejected', t('admin.rejected'))}
+        </div>
+        ${adminViewSwitcher()}
+      </div>
+    </div>
+  `;
+}
+
+function adminUsersToolbar() {
+  return `
+    <div class="admin-toolbar">
+      <div>
+        <strong>${t('admin.usersTools')}</strong>
+        <span>${filteredAdminUsers().length} / ${state.adminUsersData.length} ${t('admin.users').toLowerCase()}</span>
+      </div>
+      <div class="admin-toolbar-actions">
+        ${adminSearchBox()}
+        <div class="admin-filter-pills">
+          ${adminFilterButton('user', 'all', t('admin.allAccounts'))}
+          ${adminFilterButton('user', 'agence', t('auth.accountAgency'))}
+          ${adminFilterButton('user', 'particulier', t('auth.accountPersonal'))}
+          ${adminFilterButton('user', 'verified', t('admin.onlyVerified'))}
+          ${adminFilterButton('user', 'unverified', t('admin.onlyUnverified'))}
+        </div>
+        <button class="primary-btn admin-broadcast-btn" type="button" data-admin-broadcast>
+          <i data-lucide="send"></i><span>${t('notifications.broadcast')}</span>
+        </button>
+        ${adminViewSwitcher()}
+      </div>
+    </div>
+  `;
+}
+
+function adminMetricCard({ icon, label, value, tone = '' }) {
+  return `
+    <article class="crm-metric ${tone}">
+      <i data-lucide="${icon}"></i>
+      <div>
+        <strong>${value}</strong>
+        <span>${label}</span>
+      </div>
+    </article>
+  `;
+}
+
+function destroyAdminCharts() {
+  Object.values(state.adminCharts).forEach((chart) => chart?.destroy());
+  state.adminCharts = {};
+}
+
+function chartTheme() {
+  const styles = getComputedStyle(document.body);
+  return {
+    ink: styles.getPropertyValue('--ink').trim() || '#101620',
+    muted: styles.getPropertyValue('--muted').trim() || '#667085',
+    line: styles.getPropertyValue('--line').trim() || '#e4e9f0',
+    green: styles.getPropertyValue('--green').trim() || '#08944a',
+    orange: styles.getPropertyValue('--orange').trim() || '#ff7a00',
+    blue: styles.getPropertyValue('--blue').trim() || '#1f76ff'
+  };
+}
+
+function renderAdminCharts(summary) {
+  if (!window.Chart || state.adminTab !== 'overview') return;
+  destroyAdminCharts();
+
+  const theme = chartTheme();
+  const pipelineCanvas = document.querySelector('#crmPipelineChart');
+  const usersCanvas = document.querySelector('#crmUsersChart');
+  if (!pipelineCanvas || !usersCanvas) return;
+
+  const agencies = state.adminUsersData.filter((user) => user.accountType === 'agence').length;
+  const personal = state.adminUsersData.filter((user) => user.accountType !== 'agence' && user.role !== 'admin').length;
+  const admins = state.adminUsersData.filter((user) => user.role === 'admin').length;
+
+  state.adminCharts.pipeline = new window.Chart(pipelineCanvas, {
+    type: 'bar',
+    data: {
+      labels: [t('admin.pending'), t('admin.approved'), t('admin.rejected')],
+      datasets: [{
+        data: [summary.pending, summary.approved, summary.rejected],
+        backgroundColor: [theme.orange, theme.green, '#dc2626'],
+        borderRadius: 8,
+        maxBarThickness: 54
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: theme.muted, font: { weight: 700 } } },
+        y: { beginAtZero: true, grid: { color: theme.line }, ticks: { color: theme.muted, precision: 0 } }
+      }
+    }
+  });
+
+  state.adminCharts.users = new window.Chart(usersCanvas, {
+    type: 'doughnut',
+    data: {
+      labels: [t('auth.accountAgency'), t('auth.accountPersonal'), t('admin.admins')],
+      datasets: [{
+        data: [agencies, personal, admins],
+        backgroundColor: [theme.green, theme.blue, theme.orange],
+        borderColor: 'transparent'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '62%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: theme.ink, boxWidth: 10, usePointStyle: true }
+        }
+      }
+    }
+  });
+}
+
+function renderAdminOverview() {
+  const summary = renderAdminStats();
+  const agencies = state.adminUsersData.filter((user) => user.accountType === 'agence').length;
+  const unverified = state.adminUsersData.filter((user) => user.role !== 'admin' && user.identityVerified !== true).length;
+  const recentUsers = [...state.adminUsersData]
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+    .slice(0, 5);
+  const recentListings = [...state.adminListingsData]
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+    .slice(0, 5);
+
+  els.adminOverview.innerHTML = `
+    <div class="crm-grid">
+      <section class="crm-panel crm-wide">
+        <div class="crm-panel-head">
+          <div>
+            <h3>${t('admin.pipeline')}</h3>
+            <p>${t('admin.onlyPending')} : ${summary.pending}</p>
+          </div>
+          <button class="primary-btn admin-broadcast-btn" type="button" data-admin-go="listings">
+            <i data-lucide="home"></i><span>${t('admin.showListings')}</span>
+          </button>
+        </div>
+        <div class="crm-metrics">
+          ${adminMetricCard({ icon: 'clock-3', label: t('admin.pending'), value: summary.pending, tone: 'warning' })}
+          ${adminMetricCard({ icon: 'check-circle-2', label: t('admin.approved'), value: summary.approved, tone: 'success' })}
+          ${adminMetricCard({ icon: 'x-circle', label: t('admin.rejected'), value: summary.rejected, tone: 'danger' })}
+        </div>
+        <div class="crm-chart-panel">
+          <canvas id="crmPipelineChart" aria-label="${t('admin.pipeline')}"></canvas>
+        </div>
+      </section>
+      <section class="crm-panel">
+        <div class="crm-panel-head">
+          <div>
+            <h3>${t('admin.customerSegments')}</h3>
+            <p>${state.adminUsersData.length} ${t('admin.users').toLowerCase()}</p>
+          </div>
+        </div>
+        <div class="crm-metrics compact">
+          ${adminMetricCard({ icon: 'building-2', label: t('auth.accountAgency'), value: agencies })}
+          ${adminMetricCard({ icon: 'badge-check', label: t('admin.verified'), value: summary.verifiedUsers, tone: 'success' })}
+          ${adminMetricCard({ icon: 'badge-alert', label: t('admin.notVerified'), value: unverified, tone: 'warning' })}
+        </div>
+        <div class="crm-chart-panel small">
+          <canvas id="crmUsersChart" aria-label="${t('admin.customerSegments')}"></canvas>
+        </div>
+      </section>
+      <section class="crm-panel">
+        <div class="crm-panel-head">
+          <div>
+            <h3>${t('admin.quickActions')}</h3>
+            <p>${t('admin.subtitle')}</p>
+          </div>
+        </div>
+        <div class="crm-actions">
+          <button class="primary-btn" type="button" data-admin-broadcast><i data-lucide="send"></i><span>${t('notifications.broadcast')}</span></button>
+          <button class="ghost-btn panel-btn" type="button" data-admin-go="users"><i data-lucide="users"></i><span>${t('admin.showUsers')}</span></button>
+          <button class="ghost-btn panel-btn" type="button" data-admin-go="listings" data-listing-filter="pending"><i data-lucide="list-checks"></i><span>${t('admin.onlyPending')}</span></button>
+        </div>
+      </section>
+      <section class="crm-panel">
+        <div class="crm-panel-head"><h3>${t('admin.recentUsers')}</h3></div>
+        <div class="crm-list">
+          ${recentUsers.length ? recentUsers.map((user) => `
+            <button type="button" data-admin-go-profile="${user._id}">
+              <span><strong>${escapeHtml(user.name || user.email)}</strong><small>${escapeHtml(user.email)}</small></span>
+              <span class="status-pill ${user.identityVerified || user.role === 'admin' ? 'approved' : 'rejected'}">${user.identityVerified || user.role === 'admin' ? t('admin.verified') : t('admin.notVerified')}</span>
+            </button>
+          `).join('') : `<div class="empty">${t('admin.noData')}</div>`}
+        </div>
+      </section>
+      <section class="crm-panel">
+        <div class="crm-panel-head"><h3>${t('admin.recentListings')}</h3></div>
+        <div class="crm-list">
+          ${recentListings.length ? recentListings.map((listing) => `
+            <button type="button" data-detail-id="${listing._id}">
+              <span><strong>${escapeHtml(listing.title)}</strong><small>${escapeHtml(listing.location || '-')}</small></span>
+              <span class="status-pill ${statusClass(listing.status)}">${statusLabel(listing.status)}</span>
+            </button>
+          `).join('') : `<div class="empty">${t('admin.noData')}</div>`}
+        </div>
+      </section>
+    </div>
+  `;
+  renderAdminCharts(summary);
+}
+
+function adminListingsSimple(listings = state.adminListingsData) {
+  const approved = listings.filter((listing) => listing.status === 'approved');
+  const pending = listings.filter((listing) => listing.status === 'pending');
+  const rejected = listings.filter((listing) => listing.status === 'rejected');
   return `
     <section class="member-status-group">
       <h4>${t('admin.pending')}</h4>
@@ -2148,50 +2668,58 @@ function adminListingsSimple() {
 }
 
 function renderAdmin() {
+  const overviewActive = state.adminTab === 'overview';
   const listingsActive = state.adminTab === 'listings';
+  if (!overviewActive) destroyAdminCharts();
   renderAdminStats();
+  els.adminOverview.hidden = !overviewActive;
   els.adminListings.hidden = !listingsActive;
-  els.adminUsers.hidden = listingsActive;
-  els.adminSectionTitle.textContent = listingsActive ? t('admin.listings') : t('admin.users');
+  els.adminUsers.hidden = overviewActive || listingsActive;
+  els.adminSectionTitle.textContent = overviewActive ? t('admin.overview') : listingsActive ? t('admin.listings') : t('admin.users');
   document.querySelectorAll('[data-admin-tab]').forEach((button) => {
     button.classList.toggle('active', button.dataset.adminTab === state.adminTab);
   });
 
+  if (overviewActive) renderAdminOverview();
+
+  const listings = filteredAdminListings();
   els.adminListings.innerHTML = state.adminListingsData.length
     ? state.adminView === 'table' ? `
-      ${adminViewSwitcher()}
+      ${adminListingsToolbar()}
       <div class="admin-table-scroll">
-        <table class="admin-data-table admin-users-data-table">
+        <table class="admin-data-table">
           <thead>
             <tr>
               <th>${t('admin.listings')}</th>
               <th>${t('admin.status')}</th>
               <th>${t('admin.owner')}</th>
               <th>${t('listing.location')}</th>
+              <th>${t('admin.arrondissement')}</th>
               <th>${t('listing.price')}</th>
               <th>${t('admin.createdAt')}</th>
               <th>${t('admin.actions')}</th>
             </tr>
           </thead>
-          <tbody>${state.adminListingsData.map(adminListingTableRow).join('')}</tbody>
+          <tbody>${listings.map(adminListingTableRow).join('')}</tbody>
         </table>
       </div>
     ` : `
-      ${adminViewSwitcher()}
+      ${adminListingsToolbar()}
       <div class="admin-list-head">
         <span>${t('admin.listings')}</span>
         <span>${t('listing.price')}</span>
         <span>${t('admin.actions')}</span>
       </div>
-      ${adminListingsSimple()}
+      ${listings.length ? adminListingsSimple(listings) : `<div class="empty">${t('empty.noListing')}</div>`}
     `
     : `${adminViewSwitcher()}<div class="empty">${t('empty.noListing')}</div>`;
 
+  const users = filteredAdminUsers();
   els.adminUsers.innerHTML = state.adminUsersData.length
     ? state.adminView === 'table' ? `
-      ${adminViewSwitcher()}
+      ${adminUsersToolbar()}
       <div class="admin-table-scroll">
-        <table class="admin-data-table">
+        <table class="admin-data-table admin-users-data-table">
           <thead>
             <tr>
               <th>${t('admin.users')}</th>
@@ -2203,17 +2731,17 @@ function renderAdmin() {
               <th>${t('admin.actions')}</th>
             </tr>
           </thead>
-          <tbody>${state.adminUsersData.map(adminUserTableRow).join('')}</tbody>
+          <tbody>${users.map(adminUserTableRow).join('')}</tbody>
         </table>
       </div>
     ` : `
-      ${adminViewSwitcher()}
+      ${adminUsersToolbar()}
       <div class="admin-list-head">
         <span>${t('admin.users')}</span>
         <span>${t('admin.role')}</span>
         <span>${t('admin.actions')}</span>
       </div>
-      ${state.adminUsersData.map(adminUserItem).join('')}
+      ${users.length ? users.map(adminUserItem).join('') : `<div class="empty">${t('empty.noListing')}</div>`}
     `
     : `${adminViewSwitcher()}<div class="empty">${t('empty.noListing')}</div>`;
 
@@ -2577,7 +3105,9 @@ function listingFormData(form, options = {}) {
   const data = new FormData(form);
   if (!isAgencyAccount()) {
     data.set('dealType', 'location');
-    data.set('propertyType', 'maison');
+    if (!['maison', 'local_commercial'].includes(form.elements.propertyType.value)) {
+      data.set('propertyType', 'maison');
+    }
   }
 
   if (form.elements.area.disabled) {
@@ -2606,12 +3136,14 @@ async function hydrateUser() {
     updateAdminVisibility();
     updateAuthenticatedActions();
     connectChatSocket();
+    startNotificationPolling();
     loadChatConversations().catch(() => {});
   } catch (_error) {
     state.token = '';
     state.user = null;
     localStorage.removeItem('maisonMadaToken');
     disconnectChatSocket();
+    resetNotificationsState();
     updateAdminVisibility();
     updateAuthenticatedActions();
   }
@@ -2636,7 +3168,7 @@ els.stats.addEventListener('click', (event) => {
   const params = new URLSearchParams();
   const key = card.dataset.stat;
   if (key === 'location' || key === 'vente') params.set('dealType', key);
-  if (key === 'maison' || key === 'appartement' || key === 'terrain') params.set('propertyType', key);
+  if (key === 'maison' || key === 'appartement' || key === 'terrain' || key === 'local_commercial') params.set('propertyType', key);
   loadOtherListings(params, { includeFeatured: true }).catch((error) => toast(error.message));
   els.otherListings.scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
@@ -2851,7 +3383,10 @@ document.querySelectorAll('[data-admin-open]').forEach((button) => {
 
 document.querySelector('[data-auth-close]').addEventListener('click', () => els.authModal.close());
 document.querySelector('[data-publish-close]').addEventListener('click', () => els.publishModal.close());
-document.querySelector('[data-edit-close]').addEventListener('click', () => els.editModal.close());
+document.querySelector('[data-edit-close]').addEventListener('click', () => {
+  els.editModal.close();
+  state.editingListingAsAdmin = false;
+});
 document.querySelector('[data-map-close]').addEventListener('click', closeMap);
 document.querySelector('[data-detail-close]').addEventListener('click', () => {
   els.detailModal.close();
@@ -2924,162 +3459,88 @@ els.memberModal.addEventListener('pointerdown', (event) => {
   closeMemberProfile();
 });
 
-els.adminModal.addEventListener('pointerdown', (event) => {
-  if (event.target === els.adminModal) closeAdmin();
-});
-
-els.adminModal.addEventListener('pointerdown', (event) => {
-  if (els.adminActivityPanel.hidden) return;
-  if (event.target.closest('#adminActivityPanel')) return;
-  closeAdminActivity();
-});
-
-els.adminModal.addEventListener('pointerdown', (event) => {
-  if (els.adminProfilePanel.hidden) return;
-  if (event.target.closest('#adminProfilePanel')) return;
-  closeAdminProfile();
-});
-
-document.querySelectorAll('[data-admin-tab]').forEach((button) => {
-  button.addEventListener('click', () => {
-    state.adminTab = button.dataset.adminTab;
-    renderAdmin();
+if (els.adminModal) {
+  els.adminModal.addEventListener('pointerdown', (event) => {
+    if (els.adminActivityPanel.hidden) return;
+    if (event.target.closest('#adminActivityPanel')) return;
+    closeAdminActivity();
   });
-});
 
-els.adminModal.addEventListener('click', (event) => {
-  const viewButton = event.target.closest('[data-admin-view]');
-  if (!viewButton) return;
-  state.adminView = viewButton.dataset.adminView;
-  renderAdmin();
-});
+  els.adminModal.addEventListener('pointerdown', (event) => {
+    if (els.adminProfilePanel.hidden) return;
+    if (event.target.closest('#adminProfilePanel')) return;
+    closeAdminProfile();
+  });
 
-els.adminListings.addEventListener('click', async (event) => {
-  const featured = event.target.closest('[data-admin-featured]');
-  const approve = event.target.closest('[data-admin-approve]');
-  const reject = event.target.closest('[data-admin-reject]');
-  const remove = event.target.closest('[data-admin-delete-listing]');
+  document.querySelectorAll('[data-admin-tab]').forEach((button) => {
+    button.addEventListener('click', () => {
+      state.adminTab = button.dataset.adminTab;
+      renderAdmin();
+    });
+  });
 
-  try {
-    if (featured) {
-      await api(`/api/admin/listings/${featured.dataset.adminFeatured}/featured`, {
-        method: 'PUT',
-        headers: { ...headers(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ featured: featured.dataset.featured === 'true' })
-      });
-      toast(t('toast.featuredUpdated'));
-    } else if (approve || reject) {
-      const reason = reject ? await requestRejectReason() : '';
-      if (reject && reason === null) return;
+  els.adminModal.addEventListener('click', (event) => {
+    const viewButton = event.target.closest('[data-admin-view]');
+    const filterButton = event.target.closest('[data-admin-filter]');
+    const goButton = event.target.closest('[data-admin-go]');
+    const profileButton = event.target.closest('[data-admin-go-profile]');
+    const broadcastButton = event.target.closest('[data-admin-broadcast]');
+    const detailButton = event.target.closest('[data-detail-id]');
 
-      await api(`/api/admin/listings/${(approve || reject).dataset.adminApprove || (approve || reject).dataset.adminReject}/moderation`, {
-        method: 'PUT',
-        headers: { ...headers(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: approve ? 'approved' : 'rejected', reason })
-      });
-      toast(t('toast.moderated'));
-    } else if (remove) {
-      if (!window.confirm(t('confirm.deleteListing'))) return;
-      await api(`/api/admin/listings/${remove.dataset.adminDeleteListing}`, {
-        method: 'DELETE',
-        headers: headers()
-      });
-      toast(t('toast.deleted'));
+    if (viewButton) {
+      state.adminView = viewButton.dataset.adminView;
+    } else if (filterButton) {
+      if (filterButton.dataset.adminFilter === 'listing') {
+        state.adminListingFilter = filterButton.dataset.filterValue;
+      } else {
+        state.adminUserFilter = filterButton.dataset.filterValue;
+      }
+    } else if (goButton) {
+      state.adminTab = goButton.dataset.adminGo;
+      if (goButton.dataset.listingFilter) state.adminListingFilter = goButton.dataset.listingFilter;
+    } else if (profileButton) {
+      state.adminTab = 'users';
+      renderAdmin();
+      openAdminProfile(profileButton.dataset.adminGoProfile);
+      return;
+    } else if (broadcastButton) {
+      requestBroadcastMessage()
+        .then((message) => {
+          if (message === null) return null;
+          return api('/api/admin/notifications/broadcast', {
+            method: 'POST',
+            headers: { ...headers(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message })
+          });
+        })
+        .then((result) => {
+          if (result) toast(t('notifications.broadcastSent').replace('{count}', result.count ?? 0));
+          refreshNotificationsSoon();
+        })
+        .catch((error) => toast(error.message));
+      return;
+    } else if (detailButton && !event.target.closest('[data-admin-edit-listing], [data-admin-featured], [data-admin-approve], [data-admin-reject], [data-admin-delete-listing]')) {
+      const listing = findListingForDetail(detailButton.dataset.detailId);
+      if (listing) openListingDetail(listing);
+      return;
     } else {
       return;
     }
 
-    await Promise.all([loadAdminData(), loadStats(), loadListings(), loadOtherListings(), loadRecent()]);
-  } catch (error) {
-    toast(error.message);
-  }
-});
+    renderAdmin();
+  });
 
-els.adminUsers.addEventListener('click', async (event) => {
-  const profileButton = event.target.closest('[data-admin-profile]');
-  const activityButton = event.target.closest('[data-admin-activity]');
-  const messageButton = event.target.closest('[data-admin-message]');
-  const roleButton = event.target.closest('[data-admin-role]');
-  const accountButton = event.target.closest('[data-admin-account]');
-  const verifyButton = event.target.closest('[data-admin-verify]');
-  const deleteButton = event.target.closest('[data-admin-delete-user]');
-  if (!profileButton && !activityButton && !messageButton && !roleButton && !accountButton && !verifyButton && !deleteButton) return;
-
-  try {
-    if (profileButton) {
-      openAdminProfile(profileButton.dataset.adminProfile);
-    } else if (activityButton) {
-      await openAdminActivity(activityButton.dataset.adminActivity);
-    } else if (messageButton) {
-      const user = state.adminUsersData.find((item) => String(item._id) === String(messageButton.dataset.adminMessage));
-      const message = await requestAdminMessage(user);
-      if (message === null) return;
-      await api(`/api/admin/users/${messageButton.dataset.adminMessage}/notifications`, {
-        method: 'POST',
-        headers: { ...headers(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message })
-      });
-      toast(t('notifications.sent'));
-    } else if (roleButton) {
-      await api(`/api/admin/users/${roleButton.dataset.adminRole}`, {
-        method: 'PUT',
-        headers: { ...headers(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: roleButton.dataset.role })
-      });
-    } else if (accountButton) {
-      await api(`/api/admin/users/${accountButton.dataset.adminAccount}`, {
-        method: 'PUT',
-        headers: { ...headers(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountType: accountButton.dataset.accountType })
-      });
-    } else if (verifyButton) {
-      await api(`/api/admin/users/${verifyButton.dataset.adminVerify}`, {
-        method: 'PUT',
-        headers: { ...headers(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identityVerified: verifyButton.dataset.verified === 'true' })
-      });
-    } else {
-      if (!window.confirm(t('confirm.deleteUser'))) return;
-      await api(`/api/admin/users/${deleteButton.dataset.adminDeleteUser}`, {
-        method: 'DELETE',
-        headers: headers()
-      });
-      toast(t('toast.deleted'));
+  els.adminModal.addEventListener('input', (event) => {
+    if (!event.target.matches('[data-admin-search]')) return;
+    state.adminSearch = event.target.value;
+    renderAdmin();
+    const input = els.adminModal.querySelector('[data-admin-search]');
+    if (input) {
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
     }
-
-    await loadAdminData();
-  } catch (error) {
-    toast(error.message);
-  }
-});
-
-document.querySelector('[data-admin-activity-close]').addEventListener('click', closeAdminActivity);
-document.querySelector('[data-admin-profile-close]').addEventListener('click', closeAdminProfile);
-
-els.adminProfilePanel.addEventListener('click', (event) => {
-  const activityButton = event.target.closest('[data-admin-activity]');
-  const messageButton = event.target.closest('[data-admin-message]');
-  if (activityButton) {
-    openAdminActivity(activityButton.dataset.adminActivity).catch((error) => toast(error.message));
-    return;
-  }
-  if (messageButton) {
-    const user = state.adminUsersData.find((item) => String(item._id) === String(messageButton.dataset.adminMessage));
-    requestAdminMessage(user)
-      .then((message) => {
-        if (message === null) return null;
-        return api(`/api/admin/users/${messageButton.dataset.adminMessage}/notifications`, {
-          method: 'POST',
-          headers: { ...headers(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message })
-        });
-      })
-      .then((result) => {
-        if (result) toast(t('notifications.sent'));
-      })
-      .catch((error) => toast(error.message));
-  }
-});
+  });
+}
 
 document.querySelectorAll('[data-dashboard-filter]').forEach((button) => {
   button.addEventListener('click', () => {
@@ -3159,6 +3620,7 @@ document.querySelector('#logoutButton').addEventListener('click', async () => {
   localStorage.removeItem('maisonMadaToken');
   disconnectChatSocket();
   resetChatState();
+  resetNotificationsState();
   updateAdminVisibility();
   updateAuthenticatedActions();
   window.location.reload();
@@ -3201,28 +3663,7 @@ els.memberListings.addEventListener('click', async (event) => {
       return;
     }
 
-    state.editingListingId = String(listing._id);
-    els.editStatus.textContent = '';
-    els.editForm.elements.title.value = listing.title || '';
-    els.editForm.elements.location.value = listing.location || '';
-    els.editForm.elements.mapUrl.value = listing.mapUrl || '';
-    els.editForm.elements.dealType.value = listing.dealType || 'location';
-    els.editForm.elements.propertyType.value = listing.propertyType || 'maison';
-    els.editForm.elements.price.value = listing.price || 0;
-    els.editForm.elements.area.value = listing.area || 0;
-    els.editForm.elements.bedrooms.value = listing.bedrooms || 0;
-    els.editForm.elements.description.value = listing.description || '';
-    els.editForm.elements.hasElectricity.value = Boolean(listing.hasElectricity) ? 'true' : 'false';
-    els.editForm.elements.waterSource.value = listing.waterSource || (listing.hasTapWater === false ? 'exterieur' : 'jirama');
-    els.editForm.elements.showerLocation.value = listing.showerLocation || listing.showerWcLocation || 'interieur';
-    els.editForm.elements.wcLocation.value = listing.wcLocation || listing.showerWcLocation || 'interieur';
-    els.editForm.elements.isAvailable.value = listing.isAvailable === false ? 'false' : 'true';
-    els.editForm.elements.hasMotorbikeAccess.checked = Boolean(listing.hasMotorbikeAccess);
-    els.editForm.elements.hasCarAccess.checked = Boolean(listing.hasCarAccess);
-    els.editForm.elements.image.value = '';
-    els.editForm.elements.video.value = '';
-    applyListingFormRules(els.editForm);
-    els.editModal.showModal();
+    openEditListing(listing);
     return;
   }
 
@@ -3249,7 +3690,10 @@ els.editForm.addEventListener('submit', async (event) => {
   els.editStatus.textContent = t('status.saving');
   try {
     const body = listingFormData(els.editForm);
-    await api(`/api/listings/${state.editingListingId}`, {
+    const url = state.editingListingAsAdmin
+      ? `/api/admin/listings/${state.editingListingId}`
+      : `/api/listings/${state.editingListingId}`;
+    await api(url, {
       method: 'PUT',
       headers: headers(),
       body
@@ -3257,8 +3701,12 @@ els.editForm.addEventListener('submit', async (event) => {
 
     els.editModal.close();
     state.editingListingId = null;
+    state.editingListingAsAdmin = false;
     toast(t('toast.updated'));
-    await Promise.all([loadStats(), loadListings(), loadOtherListings(), loadRecent(), loadMemberListings()]);
+    const reloads = [loadStats(), loadListings(), loadOtherListings(), loadRecent()];
+    if (els.memberModal.classList.contains('is-open')) reloads.push(loadMemberListings());
+    if (state.user?.role === 'admin' && els.adminModal) reloads.push(loadAdminData());
+    await Promise.all(reloads);
   } catch (error) {
     els.editStatus.textContent = error.message;
   }
@@ -3269,13 +3717,12 @@ els.themeToggle.addEventListener('click', () => {
   applyTheme(dark ? 'light' : 'dark');
 });
 
-els.langToggle.addEventListener('click', async () => {
-  const currentIndex = languageOrder.indexOf(state.lang);
-  state.lang = languageOrder[(currentIndex + 1) % languageOrder.length];
+els.langSelect.addEventListener('change', async () => {
+  state.lang = languages[els.langSelect.value] ? els.langSelect.value : 'fr';
   localStorage.setItem('maisonMadaLang', state.lang);
   translatePage();
   renderMemberListings();
-  if (els.adminModal.classList.contains('is-open')) renderAdmin();
+  if (els.adminModal?.classList.contains('is-open')) renderAdmin();
   await Promise.all([loadStats(), loadListings(), loadOtherListings(searchParams(), { includeFeatured: true }), loadRecent()]);
   handleRoute();
 });

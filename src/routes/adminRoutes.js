@@ -5,25 +5,30 @@ const {
   listingsFeatured,
   listingsIndex,
   listingsModerate,
+  listingsUpdate,
   usersActivities,
   usersDestroy,
   usersIndex,
   usersNotify,
+  usersNotifyAll,
   usersUpdate
 } = require('../controllers/adminController');
 const { requireAdmin, requireAuth } = require('../middlewares/authMiddleware');
+const { uploadListingImage } = require('../middlewares/uploadMiddleware');
 
 const router = express.Router();
 
 router.use(requireAuth, requireAdmin);
 
 router.get('/users', usersIndex);
+router.post('/notifications/broadcast', usersNotifyAll);
 router.get('/users/:id/activities', usersActivities);
 router.post('/users/:id/notifications', usersNotify);
 router.put('/users/:id', usersUpdate);
 router.delete('/users/:id', usersDestroy);
 
 router.get('/listings', listingsIndex);
+router.put('/listings/:id', uploadListingImage, listingsUpdate);
 router.put('/listings/:id/featured', listingsFeatured);
 router.put('/listings/:id/moderation', listingsModerate);
 router.delete('/listings/:id', listingsDestroy);

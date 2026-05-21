@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MaisonMada Admin</title>
+    <script>
+      if (localStorage.getItem('maisonMadaAdminTheme') === 'dark') {
+        document.documentElement.classList.add('dark-mode');
+      }
+    </script>
+    <link rel="stylesheet" href="/admin.css">
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+    <script src="/admin.js" defer></script>
+  </head>
+  <body>
+    <div class="admin-app">
+      <aside class="sidebar">
+        <a class="brand" href="/">
+          <span class="brand-mark"><i data-lucide="home"></i></span>
+          <span>Maison<span>Mada</span></span>
+        </a>
+        <nav class="side-nav">
+          <button class="active" type="button" data-admin-tab="overview"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></button>
+          <button type="button" data-admin-tab="listings"><i data-lucide="building-2"></i><span>Publications</span></button>
+          <button type="button" data-admin-tab="users"><i data-lucide="users"></i><span>Utilisateurs</span></button>
+        </nav>
+        <div class="side-card">
+          <span>Support client</span>
+          <strong id="adminSupportCount">0 conversations</strong>
+          <button type="button" id="broadcastOpen"><i data-lucide="send"></i><span>Message global</span></button>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">CRM immobilier</p>
+            <h1 id="pageTitle">Vue d’ensemble</h1>
+          </div>
+          <div class="top-actions">
+            <label class="search-box">
+              <i data-lucide="search"></i>
+              <input id="adminSearch" type="search" placeholder="Rechercher une annonce, un quartier, un user...">
+            </label>
+            <button class="avatar-btn" type="button" id="themeToggle" title="Mode sombre" aria-label="Changer de thème" data-tooltip="Changer de thème"><i data-lucide="moon"></i></button>
+            <button class="avatar-btn" type="button" id="logoutButton" title="Déconnexion" aria-label="Déconnexion" data-tooltip="Déconnexion"><i data-lucide="log-out"></i></button>
+          </div>
+        </header>
+
+        <section class="auth-block" id="authBlock" hidden>
+          <div>
+            <h2>Connexion administrateur</h2>
+            <p>Connectez-vous avec un compte admin pour accéder au CRM.</p>
+          </div>
+          <form id="loginForm">
+            <label>Email<input name="email" type="email" required></label>
+            <label>Mot de passe<input name="password" type="password" required></label>
+            <button type="submit">Se connecter</button>
+          </form>
+        </section>
+
+        <section class="content-grid" id="adminContent">
+          <section class="kpi-grid" id="kpiGrid"></section>
+
+          <section class="analytics-panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">Performance</span>
+                <h2>Portefeuille MaisonMada</h2>
+              </div>
+              <div class="period-pill">Temps réel</div>
+            </div>
+            <div class="chart-wrap"><canvas id="portfolioChart"></canvas></div>
+          </section>
+
+          <section class="insights-panel">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">Répartition</span>
+                <h2>Statuts</h2>
+              </div>
+            </div>
+            <div class="donut-wrap"><canvas id="statusChart"></canvas></div>
+            <div class="mini-list" id="statusLegend"></div>
+          </section>
+
+          <section class="table-panel wide" data-panel="overview">
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">À traiter</span>
+                <h2>Publications récentes</h2>
+              </div>
+              <button class="link-btn" type="button" data-admin-tab-jump="listings">Tout voir</button>
+            </div>
+            <div class="table-wrap" id="recentListingsTable"></div>
+          </section>
+
+          <section class="table-panel wide" data-panel="listings" hidden>
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">Gestion</span>
+                <h2>Toutes les publications</h2>
+              </div>
+              <div class="segmented">
+                <button class="active" type="button" data-listing-filter="all">Tout</button>
+                <button type="button" data-listing-filter="pending">À modérer</button>
+                <button type="button" data-listing-filter="approved">Acceptées</button>
+                <button type="button" data-listing-filter="rejected">Refusées</button>
+              </div>
+            </div>
+            <div class="table-wrap" id="listingsTable"></div>
+          </section>
+
+          <section class="table-panel wide" data-panel="users" hidden>
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">Comptes</span>
+                <h2>Utilisateurs</h2>
+              </div>
+              <div class="segmented">
+                <button class="active" type="button" data-user-filter="all">Tout</button>
+                <button type="button" data-user-filter="unverified">Non vérifiés</button>
+                <button type="button" data-user-filter="agency">Agences</button>
+                <button type="button" data-user-filter="admin">Admins</button>
+              </div>
+            </div>
+            <div class="table-wrap" id="usersTable"></div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <dialog class="modal" id="listingModal">
+      <form class="modal-panel" id="listingForm" enctype="multipart/form-data">
+        <div class="modal-head">
+          <div>
+            <span class="eyebrow">Publication</span>
+            <h2>Modifier l’annonce</h2>
+          </div>
+          <button class="icon-btn" type="button" data-close-modal="listingModal" title="Fermer" aria-label="Fermer" data-tooltip="Fermer"><i data-lucide="x"></i></button>
+        </div>
+        <div class="form-grid">
+          <label>Titre<input name="title" required></label>
+          <label>Ville / quartier<input name="location" required></label>
+          <label class="wide">Lien Google Maps<input name="mapUrl" type="url" placeholder="https://maps.app.goo.gl/..."></label>
+          <label>Annonce<select name="dealType"><option value="location">Location</option><option value="vente">Vente</option></select></label>
+          <label>Bien<select name="propertyType"><option value="maison">Maison</option><option value="appartement">Appartement</option><option value="terrain">Terrain</option><option value="local_commercial">Local commercial</option></select></label>
+          <label>Prix Ariary<input name="price" required type="number" min="0"></label>
+          <label data-area-field>Surface m²<input name="area" type="number" min="0"></label>
+          <label>Chambres<input name="bedrooms" type="number" min="0"></label>
+          <label data-house-field>Disponibilité<select name="isAvailable"><option value="true">Disponible</option><option value="false">Non disponible</option></select></label>
+          <label class="wide">Description<textarea name="description" rows="4"></textarea></label>
+          <div class="utility-grid wide">
+            <label>Courant Jirama<select name="hasElectricity"><option value="true">Oui</option><option value="false">Non</option></select></label>
+            <label data-residential-utility>Eau<select name="waterSource"><option value="puits">Puits</option><option value="jirama">Jirama</option><option value="exterieur">Extérieur</option></select></label>
+            <label data-residential-utility>Douche<select name="showerLocation"><option value="interieur">Intérieur</option><option value="exterieur">Extérieur</option></select></label>
+            <label data-residential-utility>WC<select name="wcLocation"><option value="interieur">Intérieur</option><option value="exterieur">Extérieur</option></select></label>
+            <label class="check-field"><input name="hasMotorbikeAccess" type="checkbox"><span>Accès moto</span></label>
+            <label class="check-field"><input name="hasCarAccess" type="checkbox"><span>Accès voiture</span></label>
+          </div>
+          <label class="wide file-field">Nouvelles photos<input name="image" type="file" accept="image/*" multiple></label>
+          <label class="wide file-field">Nouvelle vidéo<input name="video" type="file" accept="video/*"></label>
+        </div>
+        <div class="modal-actions">
+          <span id="listingFormStatus"></span>
+          <button type="submit">Enregistrer</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="messageModal">
+      <form class="modal-panel small" id="messageForm">
+        <div class="modal-head">
+          <div>
+            <span class="eyebrow" id="messageTarget">Message</span>
+            <h2>Envoyer une notification</h2>
+          </div>
+          <button class="icon-btn" type="button" data-close-modal="messageModal" title="Fermer" aria-label="Fermer" data-tooltip="Fermer"><i data-lucide="x"></i></button>
+        </div>
+        <textarea name="message" rows="6" placeholder="Votre message..." required></textarea>
+        <div class="modal-actions">
+          <span id="messageFormStatus"></span>
+          <button type="submit">Envoyer</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="activityModal">
+      <section class="modal-panel small">
+        <div class="modal-head">
+          <div>
+            <span class="eyebrow" id="activityUser">Historique</span>
+            <h2>Activités utilisateur</h2>
+          </div>
+          <button class="icon-btn" type="button" data-close-modal="activityModal" title="Fermer" aria-label="Fermer" data-tooltip="Fermer"><i data-lucide="x"></i></button>
+        </div>
+        <div class="activity-list" id="activityList"></div>
+      </section>
+    </dialog>
+
+    <div class="toast" id="toast"></div>
+  </body>
+</html>

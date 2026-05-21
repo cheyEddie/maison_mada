@@ -60,10 +60,42 @@ Publication gratuite
 Caution 5% par mois
 
 
-
 Fonctionnalités fait ce jour
 
 Amélioration message raison de refus
 Retrait menu terrain et appart
 Ajout partie notification et envoie de message 
 Rajout système de brouillon
+
+
+à implémenter 
+Partie message clic sur le nom et redirection profil
+Publication de l'utilisateur depuis son inscription
+Suppression publication côté user
+Information sebsible à conserver de nôtre côté
+Effacer les infos sensibles sur le tchat pour la sécurité (message éphèmere)
+Modification style favoris
+mettre version longue sur les langues
+
+
+
+/******************/
+Fonctionnalité avec payement :
+1. Droit de visite
+8500Ar
+a.Le client clic sur visiter
+b.Il clique sur une date et une heure et il a 48h
+c. l'agent reçoit une confirmation et il validées
+d.l'utilisateur fait le paiement et il reçoit une confirmation
+
+
+/******************/
+
+Discuter
+script d'accueil
+durée Annonce à la une
+Tsena ahofa 
+à enlever formulaire
+eau 
+WC douche 
+Business model agence pub video

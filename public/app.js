@@ -22,6 +22,8 @@ const state = {
   chatMessages: [],
   unreadChatConversations: new Set(),
   activeConversationId: '',
+  visitListingId: '',
+  reservationListingId: '',
   chatQuickFilter: 'all',
   adminCharts: {},
   socket: null,
@@ -55,14 +57,18 @@ const els = {
   verificationModal: document.querySelector('#verificationModal'),
   verificationForm: document.querySelector('#verificationForm'),
   verificationStatus: document.querySelector('#verificationStatus'),
-  mapModal: document.querySelector('#mapModal'),
-  mapFrame: document.querySelector('#mapFrame'),
-  mapTitle: document.querySelector('#mapTitle'),
-  mapExternalLink: document.querySelector('#mapExternalLink'),
   detailModal: document.querySelector('#detailModal'),
   detailTitle: document.querySelector('#detailTitle'),
   detailReference: document.querySelector('#detailReference'),
   detailContent: document.querySelector('#detailContent'),
+  visitModal: document.querySelector('#visitModal'),
+  visitForm: document.querySelector('#visitForm'),
+  visitListingTitle: document.querySelector('#visitListingTitle'),
+  visitStatus: document.querySelector('#visitStatus'),
+  reservationModal: document.querySelector('#reservationModal'),
+  reservationForm: document.querySelector('#reservationForm'),
+  reservationListingTitle: document.querySelector('#reservationListingTitle'),
+  reservationStatus: document.querySelector('#reservationStatus'),
   adminModal: document.querySelector('#adminModal'),
   adminStats: document.querySelector('#adminStats'),
   adminSectionTitle: document.querySelector('#adminSectionTitle'),
@@ -80,6 +86,10 @@ const els = {
   memberListings: document.querySelector('#memberListings'),
   memberNotificationsPanel: document.querySelector('#memberNotificationsPanel'),
   memberNotifications: document.querySelector('#memberNotifications'),
+  memberVisitsPanel: document.querySelector('#memberVisitsPanel'),
+  memberVisits: document.querySelector('#memberVisits'),
+  memberReservationsPanel: document.querySelector('#memberReservationsPanel'),
+  memberReservations: document.querySelector('#memberReservations'),
   memberProfilePanel: document.querySelector('#memberProfilePanel'),
   memberProfileSubtitle: document.querySelector('#memberProfileSubtitle'),
   memberProfileContent: document.querySelector('#memberProfileContent'),
@@ -186,7 +196,6 @@ const i18n = {
     'actions.publishListing': 'Publier une annonce',
     'actions.allListings': 'Toutes les annonces',
     'actions.save': 'Enregistrer',
-    'actions.map': 'Carte',
     'actions.menu': 'Menu',
     'actions.back': 'Retour',
     'actions.copyReference': 'Copier la référence',
@@ -237,6 +246,7 @@ const i18n = {
     'listing.mapUrlPlaceholder': 'https://maps.app.goo.gl/...',
     'listing.mapUrlRequired': 'Ajoutez le lien Google Maps précis',
     'listing.mapUrlInvalid': 'Indiquez un lien Google Maps valide',
+    'listing.mapMissing': 'Localisation précise non renseignée pour cette annonce.',
     'listing.price': 'Prix Ariary',
     'listing.area': 'Surface m²',
     'listing.bedrooms': 'Chambres',
@@ -276,8 +286,7 @@ const i18n = {
     'listing.newVideo': 'Nouvelle vidéo de présentation',
     'listing.presentationVideo': 'Vidéo de présentation',
     'listing.personalRestriction': 'Les comptes particuliers publient uniquement des maisons en location.',
-    'map.title': 'Localisation',
-    'map.openExternal': 'Ouvrir dans Google Maps',
+    'map.openExternal': 'Ouvrir Maps',
     'publish.title': 'Publier une annonce',
     'edit.title': 'Modifier l’annonce',
     'dashboard.total': 'Annonces',
@@ -433,7 +442,6 @@ const i18n = {
     'actions.publishListing': 'Publish a listing',
     'actions.allListings': 'All listings',
     'actions.save': 'Save',
-    'actions.map': 'Map',
     'actions.menu': 'Menu',
     'actions.back': 'Back',
     'actions.copyReference': 'Copy reference',
@@ -484,6 +492,7 @@ const i18n = {
     'listing.mapUrlPlaceholder': 'https://maps.app.goo.gl/...',
     'listing.mapUrlRequired': 'Add the precise Google Maps link',
     'listing.mapUrlInvalid': 'Enter a valid Google Maps link',
+    'listing.mapMissing': 'Precise location is not set for this listing.',
     'listing.price': 'Price in Ariary',
     'listing.area': 'Area m²',
     'listing.bedrooms': 'Bedrooms',
@@ -523,8 +532,7 @@ const i18n = {
     'listing.newVideo': 'New presentation video',
     'listing.presentationVideo': 'Presentation video',
     'listing.personalRestriction': 'Individual accounts can only publish houses for rent.',
-    'map.title': 'Location',
-    'map.openExternal': 'Open in Google Maps',
+    'map.openExternal': 'Open Maps',
     'publish.title': 'Publish a listing',
     'edit.title': 'Edit listing',
     'dashboard.total': 'Listings',
@@ -680,7 +688,6 @@ const i18n = {
     'actions.publishListing': 'Hamoaka doka',
     'actions.allListings': 'Doka rehetra',
     'actions.save': 'Tehirizo',
-    'actions.map': 'Sarintany',
     'actions.menu': 'Menu',
     'actions.back': 'Hiverina',
     'actions.copyReference': 'Adikao ny laharana',
@@ -731,6 +738,7 @@ const i18n = {
     'listing.mapUrlPlaceholder': 'https://maps.app.goo.gl/...',
     'listing.mapUrlRequired': 'Ampidiro ny rohy Google Maps mazava',
     'listing.mapUrlInvalid': 'Ampidiro rohy Google Maps marina',
+    'listing.mapMissing': 'Tsy mbola misy toerana mazava ho an’ity doka ity.',
     'listing.price': 'Vidiny Ariary',
     'listing.area': 'Velarana m²',
     'listing.bedrooms': 'Efitra fatoriana',
@@ -770,8 +778,7 @@ const i18n = {
     'listing.newVideo': 'Lahatsary vaovao fampahafantarana',
     'listing.presentationVideo': 'Lahatsary fampahafantarana',
     'listing.personalRestriction': 'Ny kaonty olon-tsotra dia afaka mamoaka trano hofaina ihany.',
-    'map.title': 'Toerana',
-    'map.openExternal': 'Sokafy ao amin’ny Google Maps',
+    'map.openExternal': 'Sokafy Maps',
     'publish.title': 'Hamoaka doka',
     'edit.title': 'Hanova doka',
     'dashboard.total': 'Doka',
@@ -987,6 +994,14 @@ function updateAuthenticatedActions() {
   }
 }
 
+function redirectAgentToWorkspace() {
+  if (state.user?.role === 'agent') {
+    window.location.replace('/agent.html');
+    return true;
+  }
+  return false;
+}
+
 function setAuthMode(mode) {
   state.authMode = mode;
   const register = mode === 'register';
@@ -1010,13 +1025,8 @@ function setAuthMode(mode) {
 }
 
 function openAuth(afterAuth) {
-  state.afterAuth = afterAuth;
-  setAuthMode('login');
-  els.authForm.reset();
-  els.authNote.textContent = afterAuth === 'publish'
-    ? t('auth.notePublish')
-    : t('auth.noteMember');
-  els.authModal.showModal();
+  const next = afterAuth === 'publish' ? '#publish' : '';
+  window.location.href = `/login.html${next}`;
 }
 
 function publishDraftKey() {
@@ -1088,6 +1098,8 @@ function openPublish() {
 function closeMember() {
   closeMemberProfile();
   closeNotificationsPanel();
+  closeVisitsPanel();
+  closeReservationsPanel();
   closeNotificationsQuickPanel();
   els.memberModal.classList.remove('is-open');
   els.memberModal.hidden = true;
@@ -1110,13 +1122,112 @@ function closeVerificationModal() {
   els.verificationModal.close();
 }
 
+function openVisitModal(listing) {
+  if (!state.user) {
+    openAuth('member');
+    return;
+  }
+  state.visitListingId = String(listing._id);
+  els.visitListingTitle.textContent = listing.title || '';
+  els.visitStatus.textContent = '';
+  els.visitForm.reset();
+  els.visitModal.showModal();
+}
+
+async function createReservation(listing) {
+  if (!state.user) {
+    openAuth('member');
+    return;
+  }
+
+  const reservationAmount = Math.round(Number(listing.price || 0) * 0.1);
+
+  await api('/api/reservations', {
+    method: 'POST',
+    headers: { ...headers(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      listingId: listing._id,
+      reservationStartDate: els.reservationForm.elements.reservationStartDate.value,
+      reservationEndDate: els.reservationForm.elements.reservationEndDate.value
+    })
+  });
+  toast(`Demande envoyée. Montant à payer après validation : ${price(reservationAmount, 'vente')}`);
+  refreshNotificationsSoon();
+}
+
+function localDateValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function openReservationModal(listing) {
+  if (!state.user) {
+    openAuth('member');
+    return;
+  }
+
+  state.reservationListingId = String(listing._id);
+  els.reservationListingTitle.textContent = listing.title || '';
+  els.reservationStatus.textContent = '';
+  els.reservationForm.reset();
+
+  const today = new Date();
+  const maxDate = new Date(today);
+  maxDate.setDate(today.getDate() + 6);
+  const todayValue = localDateValue(today);
+  const maxValue = localDateValue(maxDate);
+  const startInput = els.reservationForm.elements.reservationStartDate;
+  const endInput = els.reservationForm.elements.reservationEndDate;
+
+  startInput.min = todayValue;
+  startInput.value = todayValue;
+  endInput.min = todayValue;
+  endInput.max = maxValue;
+  endInput.value = maxValue;
+  els.reservationModal.showModal();
+}
+
+function syncReservationPeriodLimits() {
+  const startInput = els.reservationForm.elements.reservationStartDate;
+  const endInput = els.reservationForm.elements.reservationEndDate;
+  if (!startInput.value) return;
+
+  const start = new Date(`${startInput.value}T00:00:00`);
+  const maxDate = new Date(start);
+  maxDate.setDate(start.getDate() + 6);
+  endInput.min = startInput.value;
+  endInput.max = localDateValue(maxDate);
+  if (!endInput.value || endInput.value < endInput.min || endInput.value > endInput.max) {
+    endInput.value = endInput.max;
+  }
+}
+
+function reservationPeriodIsValid() {
+  const start = els.reservationForm.elements.reservationStartDate.value;
+  const end = els.reservationForm.elements.reservationEndDate.value;
+  if (!start || !end) return false;
+  const diffDays = Math.floor((new Date(`${end}T00:00:00`) - new Date(`${start}T00:00:00`)) / 86400000) + 1;
+  return diffDays >= 1 && diffDays <= 7;
+}
+
 function closeNotificationsPanel() {
   els.memberNotificationsPanel.hidden = true;
+}
+
+function closeVisitsPanel() {
+  els.memberVisitsPanel.hidden = true;
+}
+
+function closeReservationsPanel() {
+  els.memberReservationsPanel.hidden = true;
 }
 
 function notificationIcon(type) {
   if (type === 'listing.rejected') return 'x-circle';
   if (type === 'listing.approved') return 'check-circle-2';
+  if (type?.startsWith('reservation.')) return 'bookmark-check';
   return 'bell';
 }
 
@@ -1207,9 +1318,90 @@ function resetNotificationsState() {
 async function openNotificationsPanel() {
   if (!state.user) return;
   closeMemberProfile();
+  closeVisitsPanel();
+  closeReservationsPanel();
   els.memberNotificationsPanel.hidden = false;
   els.memberNotifications.innerHTML = `<div class="empty">${t('empty.loading')}</div>`;
   await loadNotifications({ markRead: true });
+}
+
+function renderVisits(items = []) {
+  els.memberVisits.innerHTML = items.length
+    ? items.map((visit) => `
+      <article class="notification-item">
+        <div class="notification-icon"><i data-lucide="calendar-check"></i></div>
+        <div>
+          <strong>${escapeHtml(visit.listingTitle)}</strong>
+          <p>${escapeHtml(visit.listingLocation)} - ${visit.visitDate} ${visit.visitTime}</p>
+          <span>Statut : ${escapeHtml(visit.status)} / Paiement : ${escapeHtml(visit.paymentStatus)}</span>
+          ${visit.agentPhone ? `<p>Agent : ${escapeHtml(visit.agentName)} - ${escapeHtml(visit.agentPhone)}</p>` : ''}
+          ${visit.status === 'agent_confirmed' && visit.paymentStatus !== 'paid' ? `<button class="primary-btn" type="button" data-pay-visit="${visit._id}">Payer le droit de visite</button>` : ''}
+        </div>
+      </article>
+    `).join('')
+    : '<div class="empty">Aucune visite demandée.</div>';
+  icons();
+}
+
+async function openVisitsPanel() {
+  if (!state.user) return;
+  closeNotificationsPanel();
+  closeReservationsPanel();
+  closeMemberProfile();
+  els.memberVisitsPanel.hidden = false;
+  els.memberVisits.innerHTML = `<div class="empty">${t('empty.loading')}</div>`;
+  renderVisits(await api('/api/visits/mine', { headers: headers() }));
+}
+
+function reservationStatusLabel(status) {
+  return {
+    pending_owner: 'En attente du propriétaire',
+    owner_confirmed: 'Acceptée - paiement requis',
+    owner_rejected: 'Refusée',
+    paid: 'Payée',
+    expired: 'Expirée'
+  }[status] || status || '-';
+}
+
+function renderReservations(items = []) {
+  els.memberReservations.innerHTML = items.length
+    ? items.map((reservation) => {
+      const ownerSide = String(reservation.ownerId) === String(state.user?._id);
+      return `
+        <article class="notification-item">
+          <div class="notification-icon"><i data-lucide="bookmark-check"></i></div>
+          <div>
+            <strong>${escapeHtml(reservation.listingTitle)}</strong>
+            <p>${escapeHtml(reservation.listingLocation)} - ${new Intl.NumberFormat('fr-MG').format(reservation.reservationAmount || 0)} Ar à payer</p>
+            <p>Période : ${escapeHtml(reservation.reservationStartDate || '-')} au ${escapeHtml(reservation.reservationEndDate || '-')}</p>
+            <span>${ownerSide ? `Demande de ${escapeHtml(reservation.userName)}` : `Statut : ${reservationStatusLabel(reservation.status)}`}</span>
+            ${reservation.canReview ? `
+              <div class="inline-actions">
+                <button class="primary-btn" type="button" data-reservation-status="confirmed" data-reservation-id="${reservation._id}">Accepter</button>
+                <button class="ghost-btn panel-btn" type="button" data-reservation-status="rejected" data-reservation-id="${reservation._id}">Refuser</button>
+              </div>
+            ` : ''}
+            ${reservation.canPay ? `
+              <p>Après paiement, la réservation est actée. Le montant n’est pas remboursé si vous ne vous manifestez pas.</p>
+              <button class="primary-btn" type="button" data-pay-reservation="${reservation._id}" data-reservation-amount="${reservation.reservationAmount || 0}">Payer la réservation</button>
+            ` : ''}
+            ${reservation.paymentStatus === 'paid' ? `<p>Réservation actée. Référence : ${escapeHtml(reservation.paymentReference || '-')}. Montant non remboursable si le client ne se manifeste pas.</p>` : ''}
+          </div>
+        </article>
+      `;
+    }).join('')
+    : '<div class="empty">Aucune réservation.</div>';
+  icons();
+}
+
+async function openReservationsPanel() {
+  if (!state.user) return;
+  closeNotificationsPanel();
+  closeVisitsPanel();
+  closeMemberProfile();
+  els.memberReservationsPanel.hidden = false;
+  els.memberReservations.innerHTML = `<div class="empty">${t('empty.loading')}</div>`;
+  renderReservations(await api('/api/reservations/mine', { headers: headers() }));
 }
 
 async function openNotificationsFromTopbar() {
@@ -1220,6 +1412,7 @@ async function openNotificationsFromTopbar() {
 
   closeChatQuickPanel();
   els.notificationsQuickPanel.hidden = !els.notificationsQuickPanel.hidden;
+  els.notificationsOpenButton.setAttribute('aria-expanded', String(!els.notificationsQuickPanel.hidden));
   if (els.notificationsQuickPanel.hidden) return;
   els.notificationsQuickList.innerHTML = `<div class="empty">${t('empty.loading')}</div>`;
   await loadNotifications({ markRead: true });
@@ -1290,11 +1483,6 @@ function closeAdmin() {
   document.querySelector('.page-shell').hidden = false;
 }
 
-function closeMap() {
-  els.mapModal.close();
-  els.mapFrame.src = '';
-}
-
 function setMobileMenu(open) {
   document.body.classList.toggle('menu-open', open);
   els.menuToggle.setAttribute('aria-expanded', String(open));
@@ -1332,34 +1520,18 @@ async function openAdmin() {
   window.location.href = '/admin.html';
 }
 
-function mapQuery(location) {
-  return `${location}, Madagascar`;
-}
-
-function fallbackMapUrl(location) {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery(location))}`;
-}
-
 function listingMapUrl(listing) {
-  return listing.mapUrl || fallbackMapUrl(listing.location);
-}
-
-function isLocationFallbackEmbed(listing) {
-  if (!listing.mapEmbedUrl || !listing.mapUrl) return false;
-  try {
-    const url = new URL(listing.mapEmbedUrl);
-    const embeddedQuery = url.searchParams.get('q') || '';
-    return embeddedQuery.trim().toLowerCase() === mapQuery(listing.location).trim().toLowerCase();
-  } catch (_error) {
-    return false;
-  }
+  return listing.mapResolvedUrl || listing.mapUrl || '';
 }
 
 function listingMapEmbedUrl(listing) {
-  if (isLocationFallbackEmbed(listing)) {
-    return mapEmbedSrc(listing.location, listing.mapUrl);
+  if (listing.mapEmbedUrl) return listing.mapEmbedUrl;
+  const lat = Number(listing.mapCoordinates?.lat);
+  const lng = Number(listing.mapCoordinates?.lng);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    return `https://www.google.com/maps?q=${lat},${lng}&z=18&output=embed`;
   }
-  return listing.mapEmbedUrl || mapEmbedSrc(listing.location, listing.mapUrl);
+  return '';
 }
 
 function isGoogleMapsUrl(value) {
@@ -1368,56 +1540,25 @@ function isGoogleMapsUrl(value) {
     const host = url.hostname.toLowerCase().replace(/^www\./, '');
     const googleDomain = /(^|\.)google\.[a-z.]+$/.test(host);
     return ['http:', 'https:'].includes(url.protocol)
-      && (googleDomain || host === 'maps.app.goo.gl' || host === 'goo.gl')
-      && (host === 'maps.app.goo.gl' || host === 'goo.gl' || host.startsWith('maps.google.') || url.pathname.startsWith('/maps'));
+      && (
+        host === 'maps.app.goo.gl'
+        || host === 'goo.gl'
+        || (googleDomain && (host.startsWith('maps.google.') || url.pathname.startsWith('/maps')))
+      );
   } catch (_error) {
     return false;
   }
 }
 
 function mapButton(listing) {
+  const url = listingMapUrl(listing);
+  if (!url) return '';
+
   return `
-    <button class="map-btn" type="button" data-map-location="${encodeURIComponent(listing.location)}" data-map-url="${encodeURIComponent(listingMapUrl(listing))}" data-map-embed-url="${encodeURIComponent(listingMapEmbedUrl(listing))}">
-      <i data-lucide="map-pin"></i>${t('actions.map')}
-    </button>
+    <a class="action-chip" href="${escapeHtml(url)}" target="_blank" rel="noreferrer" aria-label="${t('map.openExternal')}">
+      <i data-lucide="map-pin"></i>${t('map.openExternal')}
+    </a>
   `;
-}
-
-function openMap(location, mapUrl = '', mapEmbedUrl = '') {
-  const externalUrl = mapUrl || fallbackMapUrl(location);
-  els.mapTitle.textContent = location;
-  els.mapFrame.src = mapEmbedUrl || mapEmbedSrc(location, mapUrl);
-  els.mapExternalLink.href = externalUrl;
-  els.mapModal.showModal();
-}
-
-function detailMapSrc(location) {
-  return `https://www.google.com/maps?q=${encodeURIComponent(mapQuery(location))}&output=embed`;
-}
-
-function mapEmbedSrc(location, mapUrl = '') {
-  try {
-    const url = new URL(mapUrl);
-    if (url.pathname.includes('/maps/embed')) return mapUrl;
-
-    const coordinates = decodeURIComponent(url.href).match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
-    if (coordinates) {
-      return `https://www.google.com/maps?q=${coordinates[1]},${coordinates[2]}&output=embed`;
-    }
-
-    const query = url.searchParams.get('query') || url.searchParams.get('q');
-    if (query) {
-      return `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
-    }
-
-    if (url.hostname.toLowerCase().replace(/^www\./, '') === 'maps.app.goo.gl') {
-      return `https://www.google.com/maps?q=${encodeURIComponent(url.href)}&output=embed`;
-    }
-  } catch (_error) {
-    return mapUrl ? `https://www.google.com/maps?q=${encodeURIComponent(mapUrl)}&output=embed` : detailMapSrc(location);
-  }
-
-  return mapUrl ? `https://www.google.com/maps?q=${encodeURIComponent(mapUrl)}&output=embed` : detailMapSrc(location);
 }
 
 function phoneHref(phone) {
@@ -1448,7 +1589,7 @@ function ownerProfileLink(listing, className = 'owner-profile-link') {
   `;
 }
 
-function ownerChatButton(listing, className = 'map-btn') {
+function ownerChatButton(listing, className = 'action-chip') {
   if (!listing.ownerId || String(listing.ownerId) === String(state.user?._id)) return '';
 
   return `
@@ -1528,7 +1669,7 @@ function canShareListing(listing) {
   return listing.status === undefined || listing.status === 'approved';
 }
 
-function shareButton(listing, className = 'map-btn') {
+function shareButton(listing, className = 'action-chip') {
   if (!canShareListing(listing)) return '';
 
   return `
@@ -1622,7 +1763,6 @@ function openListingDetail(listing) {
   const hasMotorbikeAccess = Boolean(listing.hasMotorbikeAccess);
   const hasCarAccess = Boolean(listing.hasCarAccess);
   const images = listingImages(listing);
-  const callLink = ownerPhoneLink(listing, 'primary-btn call-link');
   const title = escapeHtml(listing.title);
   const location = escapeHtml(listing.location);
   const propertyType = escapeHtml(propertyTypeLabel(listing.propertyType));
@@ -1644,8 +1784,16 @@ function openListingDetail(listing) {
         <div class="muted">${location}</div>
         <div class="owner-contact">
           ${ownerProfileLink(listing)}
-          ${callLink || `<span><i data-lucide="phone"></i>${t('listing.noOwnerPhone')}</span>`}
-          ${ownerChatButton(listing, 'primary-btn call-link')}
+          <button class="primary-btn visit-owner-btn" type="button" data-visit-listing="${listing._id}">
+            <i data-lucide="calendar-check"></i>
+            <span>Visiter</span>
+          </button>
+          ${listing.dealType === 'location' ? `
+            <button class="primary-btn reserve-owner-btn" type="button" data-reserve-listing="${listing._id}">
+              <i data-lucide="bookmark-check"></i>
+              <span>Réserver</span>
+            </button>
+          ` : ''}
         </div>
         <div class="detail-facts">
           <span>${sale ? t('common.sale') : t('common.location')}</span>
@@ -1673,13 +1821,16 @@ function openListingDetail(listing) {
       </div>
     ` : ''}
     <p class="detail-description">${description}</p>
-    <iframe class="map-frame" title="Google Maps" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${listingMapEmbedUrl(listing)}"></iframe>
+    ${listingMapEmbedUrl(listing)
+      ? `<iframe class="map-frame" title="Google Maps" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${escapeHtml(listingMapEmbedUrl(listing))}"></iframe>`
+      : `<div class="empty">${t('listing.mapMissing')}</div>`
+    }
     <div class="modal-actions">
       <span></span>
-      ${shareButton(listing, 'primary-btn map-link')}
-      <a class="primary-btn map-link" href="${listingMapUrl(listing)}" target="_blank" rel="noreferrer">
+      ${shareButton(listing, 'primary-btn detail-share-link')}
+      <a class="primary-btn detail-share-link" href="${escapeHtml(listingMapUrl(listing))}" target="_blank" rel="noreferrer">
+        <i data-lucide="map-pin"></i>
         <span>${t('map.openExternal')}</span>
-        <i data-lucide="external-link"></i>
       </a>
     </div>
   `;
@@ -1690,7 +1841,6 @@ function openListingDetail(listing) {
 function listingCard(listing) {
   const favorite = state.favorites.has(String(listing._id));
   const sale = listing.dealType === 'vente';
-  const callLink = ownerPhoneLink(listing);
   const title = escapeHtml(listing.title);
   const location = escapeHtml(listing.location);
 
@@ -1712,8 +1862,6 @@ function listingCard(listing) {
           ${areaMarkup(listing)}
           ${listing.propertyType === 'maison' ? `<span><i data-lucide="circle-check"></i>${availabilityText(listing)}</span>` : ''}
           ${ownerProfileLink(listing, 'owner owner-profile-link')}
-          ${callLink}
-          ${ownerChatButton(listing)}
           ${mapButton(listing)}
           ${shareButton(listing)}
         </div>
@@ -1751,7 +1899,6 @@ function memberItem(listing) {
         <div class="muted">${location}</div>
         <div class="admin-meta">${statusLabel(listing.status)}</div>
         <div>${price(listing.price, listing.dealType)}</div>
-        ${mapButton(listing)}
         ${shareButton(listing)}
       </div>
       <div class="member-item-actions">
@@ -1774,7 +1921,7 @@ function openEditListing(listing, options = {}) {
   els.editStatus.textContent = '';
   els.editForm.elements.title.value = listing.title || '';
   els.editForm.elements.location.value = listing.location || '';
-  els.editForm.elements.mapUrl.value = listing.mapUrl || '';
+  els.editForm.elements.mapUrl.value = listing.mapUrl || listing.mapResolvedUrl || '';
   els.editForm.elements.dealType.value = listing.dealType || 'location';
   els.editForm.elements.propertyType.value = listing.propertyType || 'maison';
   els.editForm.elements.price.value = listing.price || 0;
@@ -2895,10 +3042,12 @@ function renderChatConversations() {
 
 function closeChatQuickPanel() {
   if (els.chatQuickPanel) els.chatQuickPanel.hidden = true;
+  if (els.chatOpenButton) els.chatOpenButton.setAttribute('aria-expanded', 'false');
 }
 
 function closeNotificationsQuickPanel() {
   if (els.notificationsQuickPanel) els.notificationsQuickPanel.hidden = true;
+  if (els.notificationsOpenButton) els.notificationsOpenButton.setAttribute('aria-expanded', 'false');
 }
 
 function conversationInitials(conversation) {
@@ -2999,6 +3148,7 @@ async function openChatQuickPanel() {
 
   closeNotificationsQuickPanel();
   els.chatQuickPanel.hidden = !els.chatQuickPanel.hidden;
+  els.chatOpenButton.setAttribute('aria-expanded', String(!els.chatQuickPanel.hidden));
   if (els.chatQuickPanel.hidden) return;
   connectChatSocket();
   els.chatQuickList.innerHTML = `<div class="empty">${t('empty.loading')}</div>`;
@@ -3133,6 +3283,7 @@ async function hydrateUser() {
 
   try {
     state.user = await api('/api/auth/me', { headers: headers() });
+    if (redirectAgentToWorkspace()) return;
     updateAdminVisibility();
     updateAuthenticatedActions();
     connectChatSocket();
@@ -3352,15 +3503,67 @@ document.addEventListener('click', (event) => {
     openPublish();
   }
 
-  const mapButton = event.target.closest('[data-map-location]');
-  if (mapButton) {
+  const visitButton = event.target.closest('[data-visit-listing]');
+  if (visitButton) {
     event.preventDefault();
     event.stopPropagation();
-    openMap(
-      decodeURIComponent(mapButton.dataset.mapLocation),
-      decodeURIComponent(mapButton.dataset.mapUrl || ''),
-      decodeURIComponent(mapButton.dataset.mapEmbedUrl || '')
-    );
+    const listing = findListingForDetail(visitButton.dataset.visitListing);
+    if (listing) openVisitModal(listing);
+    return;
+  }
+
+  const reserveButton = event.target.closest('[data-reserve-listing]');
+  if (reserveButton) {
+    event.preventDefault();
+    event.stopPropagation();
+    const listing = findListingForDetail(reserveButton.dataset.reserveListing);
+    if (listing) openReservationModal(listing);
+    return;
+  }
+
+  const payVisit = event.target.closest('[data-pay-visit]');
+  if (payVisit) {
+    event.preventDefault();
+    api(`/api/visits/${payVisit.dataset.payVisit}/pay`, {
+      method: 'POST',
+      headers: headers()
+    }).then(() => {
+      toast('Paiement validé');
+      return openVisitsPanel();
+    }).catch((error) => toast(error.message));
+    return;
+  }
+
+  const reservationStatus = event.target.closest('[data-reservation-status]');
+  if (reservationStatus) {
+    event.preventDefault();
+    api(`/api/reservations/owner/${reservationStatus.dataset.reservationId}`, {
+      method: 'PUT',
+      headers: { ...headers(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: reservationStatus.dataset.reservationStatus })
+    }).then(() => {
+      toast('Réservation mise à jour');
+      refreshNotificationsSoon();
+      return openReservationsPanel();
+    }).catch((error) => toast(error.message));
+    return;
+  }
+
+  const payReservation = event.target.closest('[data-pay-reservation]');
+  if (payReservation) {
+    event.preventDefault();
+    const amount = new Intl.NumberFormat('fr-MG').format(Number(payReservation.dataset.reservationAmount || 0));
+    const confirmed = window.confirm(`Valider le paiement de ${amount} Ar ? Après paiement, la réservation est actée et ce montant ne sera pas remboursé si vous ne vous manifestez pas.`);
+    if (!confirmed) return;
+    api(`/api/reservations/${payReservation.dataset.payReservation}/pay`, {
+      method: 'POST',
+      headers: headers()
+    }).then(() => {
+      toast('Paiement de réservation validé');
+      refreshNotificationsSoon();
+      return openReservationsPanel();
+    }).catch((error) => toast(error.message));
+    return;
   }
 
   const detailCard = event.target.closest('[data-detail-id]');
@@ -3387,7 +3590,6 @@ document.querySelector('[data-edit-close]').addEventListener('click', () => {
   els.editModal.close();
   state.editingListingAsAdmin = false;
 });
-document.querySelector('[data-map-close]').addEventListener('click', closeMap);
 document.querySelector('[data-detail-close]').addEventListener('click', () => {
   els.detailModal.close();
   if (window.location.hash.startsWith('#listing/')) {
@@ -3399,7 +3601,13 @@ document.querySelector('[data-member-profile-open]').addEventListener('click', o
 document.querySelector('[data-member-profile-close]').addEventListener('click', closeMemberProfile);
 document.querySelector('[data-member-notifications-open]').addEventListener('click', () => openNotificationsPanel().catch((error) => toast(error.message)));
 document.querySelector('[data-member-notifications-close]').addEventListener('click', closeNotificationsPanel);
+document.querySelector('[data-member-visits-open]').addEventListener('click', () => openVisitsPanel().catch((error) => toast(error.message)));
+document.querySelector('[data-member-visits-close]').addEventListener('click', closeVisitsPanel);
+document.querySelector('[data-member-reservations-open]').addEventListener('click', () => openReservationsPanel().catch((error) => toast(error.message)));
+document.querySelector('[data-member-reservations-close]').addEventListener('click', closeReservationsPanel);
 document.querySelector('[data-verification-close]').addEventListener('click', closeVerificationModal);
+document.querySelector('[data-visit-close]').addEventListener('click', () => els.visitModal.close());
+document.querySelector('[data-reservation-close]').addEventListener('click', () => els.reservationModal.close());
 document.querySelectorAll('[data-admin-close]').forEach((button) => {
   button.addEventListener('click', closeAdmin);
 });
@@ -3428,19 +3636,12 @@ document.addEventListener('pointerdown', (event) => {
 });
 
 [
-  els.authModal,
-  els.publishModal,
-  els.editModal,
-  els.verificationModal,
-  els.detailModal
+  ...document.querySelectorAll('dialog.modal')
 ].forEach((modal) => {
   modal.addEventListener('pointerdown', (event) => {
-    if (event.target === modal) modal.close();
+    if (event.target !== modal) return;
+    modal.close();
   });
-});
-
-els.mapModal.addEventListener('pointerdown', (event) => {
-  if (event.target === els.mapModal) closeMap();
 });
 
 els.memberModal.addEventListener('pointerdown', (event) => {
@@ -3584,6 +3785,50 @@ els.verificationForm.addEventListener('submit', async (event) => {
   }
 });
 
+els.visitForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!state.visitListingId) return;
+  els.visitStatus.textContent = 'Envoi...';
+  try {
+    await api('/api/visits', {
+      method: 'POST',
+      headers: { ...headers(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        listingId: state.visitListingId,
+        visitDate: els.visitForm.elements.visitDate.value,
+        visitTime: els.visitForm.elements.visitTime.value
+      })
+    });
+    els.visitModal.close();
+    toast('Demande envoyée à l’agent');
+    refreshNotificationsSoon();
+  } catch (error) {
+    els.visitStatus.textContent = error.message;
+  }
+});
+
+els.reservationForm.elements.reservationStartDate.addEventListener('change', syncReservationPeriodLimits);
+
+els.reservationForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!state.reservationListingId) return;
+  if (!reservationPeriodIsValid()) {
+    els.reservationStatus.textContent = 'La période ne doit pas dépasser 7 jours.';
+    return;
+  }
+
+  const listing = findListingForDetail(state.reservationListingId);
+  if (!listing) return;
+
+  els.reservationStatus.textContent = 'Envoi...';
+  try {
+    await createReservation(listing);
+    els.reservationModal.close();
+  } catch (error) {
+    els.reservationStatus.textContent = error.message;
+  }
+});
+
 els.authForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   els.authStatus.textContent = state.authMode === 'register' ? t('status.creating') : t('status.login');
@@ -3601,6 +3846,7 @@ els.authForm.addEventListener('submit', async (event) => {
     state.token = session.token;
     state.user = session.user;
     localStorage.setItem('maisonMadaToken', state.token);
+    if (redirectAgentToWorkspace()) return;
     window.location.reload();
     return;
   } catch (error) {

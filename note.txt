@@ -72,15 +72,18 @@ Rajout système de brouillon
 Partie message clic sur le nom et redirection profil
 Publication de l'utilisateur depuis son inscription
 Suppression publication côté user
-Information sebsible à conserver de nôtre côté
+Information senbsible à conserver de nôtre côté
 Effacer les infos sensibles sur le tchat pour la sécurité (message éphèmere)
 Modification style favoris
 mettre version longue sur les langues
-
+Tsena ahofa 
+à enlever formulaire
+eau 
+WC douche 
 
 
 /******************/
-Fonctionnalité avec payement :
+Fonctionnalité avec payement okay:
 1. Droit de visite
 8500Ar
 a.Le client clic sur visiter
@@ -89,13 +92,10 @@ c. l'agent reçoit une confirmation et il validées
 d.l'utilisateur fait le paiement et il reçoit une confirmation
 
 
+
 /******************/
 
 Discuter
 script d'accueil
 durée Annonce à la une
-Tsena ahofa 
-à enlever formulaire
-eau 
-WC douche 
 Business model agence pub video

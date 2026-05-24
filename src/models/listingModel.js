@@ -38,6 +38,11 @@ function cleanInsideOutside(value) {
   return ['interieur', 'exterieur'].includes(value) ? value : 'interieur';
 }
 
+function cleanCoordinate(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Number(number.toFixed(7)) : null;
+}
+
 function normalizeDistrictText(value) {
   return String(value || '')
     .normalize('NFD')
@@ -90,17 +95,81 @@ function cleanMapUrl(value) {
   }
 
   const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
-  const isGoogleDomain = /(^|\.)google\.[a-z.]+$/.test(host);
-  const isGoogleMapsHost = isGoogleDomain || host === 'maps.app.goo.gl' || host === 'goo.gl';
-  const isMapsPath = host === 'maps.app.goo.gl' || host === 'goo.gl' || host.startsWith('maps.google.') || parsed.pathname.startsWith('/maps');
+  const googleDomain = /(^|\.)google\.[a-z.]+$/.test(host);
+  const allowedShortener = host === 'maps.app.goo.gl' || host === 'goo.gl';
+  const allowedGoogleMaps = googleDomain && (host.startsWith('maps.google.') || parsed.pathname.startsWith('/maps'));
 
-  if (!['http:', 'https:'].includes(parsed.protocol) || !isGoogleMapsHost || !isMapsPath) {
+  if (!['http:', 'https:'].includes(parsed.protocol) || (!allowedShortener && !allowedGoogleMaps)) {
     const error = new Error('Indiquez un lien Google Maps valide');
     error.status = 400;
     throw error;
   }
 
-  return url;
+  return parsed.href;
+}
+
+function dmsToDecimal(degrees, minutes, seconds, direction) {
+  const decimal = Number(degrees) + (Number(minutes) / 60) + (Number(seconds || 0) / 3600);
+  const signed = ['S', 'W'].includes(String(direction || '').toUpperCase()) ? -decimal : decimal;
+  return cleanCoordinate(signed);
+}
+
+function extractMapCoordinates(value) {
+  try {
+    const raw = decodeURIComponent(String(value || ''));
+    const url = new URL(raw);
+    const decodedUrl = decodeURIComponent(url.href);
+
+    const placeCoordinates = decodedUrl.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
+    if (placeCoordinates) {
+      return {
+        lat: cleanCoordinate(placeCoordinates[1]),
+        lng: cleanCoordinate(placeCoordinates[2])
+      };
+    }
+
+    const reverseCoordinates = decodedUrl.match(/!2d(-?\d+(?:\.\d+)?)!3d(-?\d+(?:\.\d+)?)/);
+    if (reverseCoordinates) {
+      return {
+        lat: cleanCoordinate(reverseCoordinates[2]),
+        lng: cleanCoordinate(reverseCoordinates[1])
+      };
+    }
+
+    const atCoordinates = decodedUrl.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+    if (atCoordinates) {
+      return {
+        lat: cleanCoordinate(atCoordinates[1]),
+        lng: cleanCoordinate(atCoordinates[2])
+      };
+    }
+
+    const queryCoordinates = (url.searchParams.get('query') || url.searchParams.get('q') || '')
+      .match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+    if (queryCoordinates) {
+      return {
+        lat: cleanCoordinate(queryCoordinates[1]),
+        lng: cleanCoordinate(queryCoordinates[2])
+      };
+    }
+
+    const dmsCoordinates = decodedUrl.match(/(\d+(?:\.\d+)?)°(\d+(?:\.\d+)?)'(?:(\d+(?:\.\d+)?)")?([NS])\+(\d+(?:\.\d+)?)°(\d+(?:\.\d+)?)'(?:(\d+(?:\.\d+)?)")?([EW])/i);
+    if (dmsCoordinates) {
+      return {
+        lat: dmsToDecimal(dmsCoordinates[1], dmsCoordinates[2], dmsCoordinates[3], dmsCoordinates[4]),
+        lng: dmsToDecimal(dmsCoordinates[5], dmsCoordinates[6], dmsCoordinates[7], dmsCoordinates[8])
+      };
+    }
+  } catch (_error) {
+    return null;
+  }
+
+  return null;
+}
+
+function mapEmbedUrlFromCoordinates(coordinates) {
+  if (!coordinates || !Number.isFinite(coordinates.lat) || !Number.isFinite(coordinates.lng)) return '';
+  return `https://www.google.com/maps?q=${coordinates.lat},${coordinates.lng}&z=18&output=embed`;
 }
 
 function mapEmbedUrlFromValue(value) {
@@ -108,18 +177,17 @@ function mapEmbedUrlFromValue(value) {
     const url = new URL(String(value || '').trim());
     if (url.pathname.includes('/maps/embed')) return url.href;
 
-    const coordinates = decodeURIComponent(url.href).match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
-    if (coordinates) {
-      return `https://www.google.com/maps?q=${coordinates[1]},${coordinates[2]}&output=embed`;
-    }
+    const coordinatesEmbed = mapEmbedUrlFromCoordinates(extractMapCoordinates(url.href));
+    if (coordinatesEmbed) return coordinatesEmbed;
 
     const query = url.searchParams.get('query') || url.searchParams.get('q');
     if (query) {
-      return `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
+      return `https://www.google.com/maps?q=${encodeURIComponent(query)}&z=18&output=embed`;
     }
 
-    if (url.hostname.toLowerCase().replace(/^www\./, '') === 'maps.app.goo.gl') {
-      return `https://www.google.com/maps?q=${encodeURIComponent(url.href)}&output=embed`;
+    const placeMatch = decodeURIComponent(url.href).match(/\/maps\/place\/([^/@?]+)/);
+    if (placeMatch) {
+      return `https://www.google.com/maps?q=${encodeURIComponent(placeMatch[1].replace(/\+/g, ' '))}&z=18&output=embed`;
     }
   } catch (_error) {
     return '';
@@ -130,15 +198,20 @@ function mapEmbedUrlFromValue(value) {
 
 async function expandGoogleMapsUrl(mapUrl) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
+  const timeout = setTimeout(() => controller.abort(), 7000);
 
   try {
     const response = await fetch(mapUrl, {
       method: 'GET',
-      redirect: 'follow',
+      redirect: 'manual',
+      headers: {
+        'user-agent': 'Mozilla/5.0 MaisonMada/1.0'
+      },
       signal: controller.signal
     });
-    return response.url || mapUrl;
+    const location = response.headers.get('location');
+    if (!location) return response.url || mapUrl;
+    return new URL(location, mapUrl).href;
   } catch (_error) {
     return mapUrl;
   } finally {
@@ -146,23 +219,48 @@ async function expandGoogleMapsUrl(mapUrl) {
   }
 }
 
-async function mapPayload(value) {
+async function mapPayload(value, required = false) {
+  if (!required && (value === undefined || value === null || String(value).trim() === '')) return {};
+
   const mapUrl = cleanMapUrl(value);
-  let mapEmbedUrl = mapEmbedUrlFromValue(mapUrl);
+  const mapResolvedUrl = await expandGoogleMapsUrl(mapUrl);
+  const mapCoordinates = extractMapCoordinates(mapResolvedUrl) || extractMapCoordinates(mapUrl);
+  const mapEmbedUrl = mapEmbedUrlFromCoordinates(mapCoordinates)
+    || mapEmbedUrlFromValue(mapResolvedUrl)
+    || mapEmbedUrlFromValue(mapUrl);
 
-  if (!mapEmbedUrl) {
-    const expandedUrl = await expandGoogleMapsUrl(mapUrl);
-    mapEmbedUrl = mapEmbedUrlFromValue(expandedUrl);
-  }
-
-  if (!mapEmbedUrl) {
-    mapEmbedUrl = `https://www.google.com/maps?q=${encodeURIComponent(mapUrl)}&output=embed`;
+  if (required && !mapEmbedUrl) {
+    const error = new Error('Impossible de lire la localisation precise depuis ce lien Google Maps');
+    error.status = 400;
+    throw error;
   }
 
   return {
     mapUrl,
+    mapResolvedUrl: mapResolvedUrl === mapUrl ? '' : mapResolvedUrl,
+    mapCoordinates,
     mapEmbedUrl
   };
+}
+
+async function ensureListingMapEmbeds() {
+  const cursor = listings().find({
+    mapUrl: { $exists: true, $ne: '' },
+    $or: [
+      { mapEmbedUrl: { $exists: false } },
+      { mapEmbedUrl: '' },
+      { mapCoordinates: { $exists: false } }
+    ]
+  });
+
+  for await (const listing of cursor) {
+    const nextMap = await mapPayload(listing.mapUrl, false).catch(() => null);
+    if (!nextMap?.mapEmbedUrl) continue;
+    await listings().updateOne(
+      { _id: listing._id },
+      { $set: { ...nextMap, updatedAt: new Date() } }
+    );
+  }
 }
 
 function uploadedImages(files = {}) {
@@ -270,9 +368,6 @@ async function listingPayload(body, user, files) {
   const requiredFields = ['title', 'location', 'mapUrl', 'dealType', 'propertyType', 'price'];
   const images = uploadedImages(files);
   const video = uploadedVideo(files);
-  const map = await mapPayload(body.mapUrl);
-  validateListingRights(body, user);
-  validateImageCount(images, true);
 
   for (const field of requiredFields) {
     if (!body[field]) {
@@ -282,6 +377,10 @@ async function listingPayload(body, user, files) {
     }
   }
 
+  validateListingRights(body, user);
+  validateImageCount(images, true);
+  const map = await mapPayload(body.mapUrl, true);
+
   const location = String(body.location).trim();
   const commercialPremises = isCommercialPremises(body);
 
@@ -290,6 +389,8 @@ async function listingPayload(body, user, files) {
     location,
     arrondissement: resolveArrondissement(location),
     mapUrl: map.mapUrl,
+    mapResolvedUrl: map.mapResolvedUrl,
+    mapCoordinates: map.mapCoordinates,
     mapEmbedUrl: map.mapEmbedUrl,
     dealType: String(body.dealType),
     propertyType: String(body.propertyType),
@@ -363,8 +464,8 @@ async function listingUpdatePayload(body, files, existingListing, user) {
     payload.wcLocation = cleanInsideOutside(body.wcLocation);
   }
 
-  if (body.mapUrl !== undefined && body.mapUrl !== '') {
-    Object.assign(payload, await mapPayload(body.mapUrl));
+  if (body.mapUrl !== undefined) {
+    Object.assign(payload, await mapPayload(body.mapUrl, false));
   }
 
   if (images.length) {
@@ -764,6 +865,7 @@ async function getListingStats() {
 
 module.exports = {
   createListing,
+  decodeGoogleMapsLink: mapPayload,
   deleteListing,
   deleteListingAsAdmin,
   ensureDescriptions,
@@ -771,6 +873,7 @@ module.exports = {
   ensureImageArrays,
   ensureListingIndexes,
   ensureListingArrondissements,
+  ensureListingMapEmbeds,
   ensureOwnerPhones,
   ensureReferenceFormat,
   ensureReferences,

@@ -1,4 +1,5 @@
 const {
+  createAgentAsAdmin,
   deleteUser,
   listUsers,
   updateUserAsAdmin
@@ -16,6 +17,22 @@ const {
 async function usersIndex(_req, res, next) {
   try {
     res.json(await listUsers());
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function agentsStore(req, res, next) {
+  try {
+    const agent = await createAgentAsAdmin(req.body);
+    await logUserActivity({
+      userId: agent._id,
+      actorId: req.user._id,
+      type: 'admin.agent_create',
+      label: `Creation du compte agent ${agent.reference || agent.email}`,
+      metadata: { agentArrondissement: agent.agentArrondissement }
+    });
+    res.status(201).json(agent);
   } catch (error) {
     next(error);
   }
@@ -250,6 +267,7 @@ async function listingsDestroy(req, res, next) {
 }
 
 module.exports = {
+  agentsStore,
   listingsDestroy,
   listingsFeatured,
   listingsIndex,

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MaisonMada Agent</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <script>
+      if (localStorage.getItem('maisonMadaTheme') === 'dark') {
+        document.documentElement.classList.add('dark-mode');
+      }
+    </script>
+    <link rel="stylesheet" href="/agent.css">
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+    <script src="/agent.js" defer></script>
+  </head>
+  <body>
+    <main class="agent-app">
+      <section class="agent-card" id="loginCard">
+        <h1>Espace agent</h1>
+        <form id="loginForm">
+          <label>Email<input name="email" type="email" required></label>
+          <label>Mot de passe<input name="password" type="password" required></label>
+          <button type="submit">Se connecter</button>
+        </form>
+      </section>
+
+      <section class="agent-dashboard" id="dashboard" hidden>
+        <header>
+          <div>
+            <span>MaisonMada Agent</span>
+            <h1 id="agentName">Demandes de visite</h1>
+          </div>
+          <div class="agent-actions">
+            <button type="button" id="themeToggle" aria-label="Changer de thème"><i data-lucide="moon"></i></button>
+            <button type="button" id="logoutButton"><i data-lucide="log-out"></i> Déconnexion</button>
+          </div>
+        </header>
+        <div class="visit-list" id="visitList"></div>
+      </section>
+
+      <aside class="detail-panel" id="detailPanel" hidden>
+        <div class="detail-head">
+          <div>
+            <span>Détail maison</span>
+            <h2 id="detailTitle">Maison</h2>
+          </div>
+          <button type="button" id="detailClose"><i data-lucide="x"></i></button>
+        </div>
+        <div id="detailContent"></div>
+      </aside>
+    </main>
+  </body>
+</html>

@@ -1,6 +1,7 @@
 const express = require('express');
 
 const {
+  agentsStore,
   listingsDestroy,
   listingsFeatured,
   listingsIndex,
@@ -21,6 +22,7 @@ const router = express.Router();
 router.use(requireAuth, requireAdmin);
 
 router.get('/users', usersIndex);
+router.post('/agents', agentsStore);
 router.post('/notifications/broadcast', usersNotifyAll);
 router.get('/users/:id/activities', usersActivities);
 router.post('/users/:id/notifications', usersNotify);

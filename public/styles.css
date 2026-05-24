@@ -571,6 +571,7 @@ textarea:focus-visible {
   border: 1px solid var(--line);
   border-radius: 999px;
   font-weight: 900;
+  color-scheme: light;
 }
 
 .lang-select svg {
@@ -580,6 +581,9 @@ textarea:focus-visible {
 
 .lang-select select {
   min-width: 52px;
+  min-height: 0;
+  width: auto;
+  padding: 0 18px 0 0;
   border: 0;
   outline: 0;
   color: var(--ink);
@@ -587,6 +591,24 @@ textarea:focus-visible {
   font: inherit;
   cursor: pointer;
   appearance: none;
+}
+
+.lang-select select option {
+  color: var(--ink);
+  background: var(--surface);
+}
+
+body.dark-mode .lang-select {
+  color-scheme: dark;
+  background: var(--field);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+body.dark-mode .lang-select select,
+body.dark-mode .lang-select select option {
+  color: var(--ink);
+  background: var(--field);
 }
 
 .lang-select::after {
@@ -1291,10 +1313,6 @@ textarea {
 
 .modal {
   width: min(760px, calc(100% - 28px));
-}
-
-.map-modal {
-  width: min(920px, calc(100% - 28px));
 }
 
 .detail-modal {
@@ -2394,7 +2412,7 @@ textarea {
   border-radius: 10px;
 }
 
-.map-link {
+.detail-share-link {
   text-decoration: none;
 }
 
@@ -2485,6 +2503,16 @@ textarea {
   color: #fff;
 }
 
+.visit-owner-btn,
+.reserve-owner-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.reserve-owner-btn {
+  background: #0f766e;
+}
+
 .detail-description {
   margin: 18px 0;
   color: var(--muted);
@@ -2531,7 +2559,7 @@ textarea {
   color: var(--green);
 }
 
-.map-btn {
+.action-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2546,7 +2574,7 @@ textarea {
   font-weight: 900;
 }
 
-.map-btn,
+.action-chip,
 .favorite-btn,
 .icon-btn {
   cursor: pointer;

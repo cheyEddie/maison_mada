@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>MaisonMada</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <script>
       if (localStorage.getItem('maisonMadaTheme') === 'dark') {
         document.documentElement.classList.add('dark-mode');
@@ -238,6 +239,8 @@
         <div class="member-actions">
           <button class="ghost-btn panel-btn" type="button" data-member-profile-open><i data-lucide="user"></i><span data-i18n="admin.profile">Profil</span></button>
           <button class="ghost-btn panel-btn" type="button" data-member-notifications-open><i data-lucide="bell"></i><span data-i18n="notifications.title">Notifications</span></button>
+          <button class="ghost-btn panel-btn" type="button" data-member-visits-open><i data-lucide="calendar-check"></i><span>Mes visites</span></button>
+          <button class="ghost-btn panel-btn" type="button" data-member-reservations-open><i data-lucide="bookmark-check"></i><span>Réservations</span></button>
           <button class="primary-btn" type="button" data-publish-open><span data-i18n="actions.publishListing">Publier une annonce</span> <i data-lucide="plus"></i></button>
           <button class="ghost-btn panel-btn" type="button" id="logoutButton"><i data-lucide="log-out"></i><span data-i18n="auth.logout">Déconnexion</span></button>
         </div>
@@ -257,6 +260,20 @@
             <button class="ghost-btn panel-btn" type="button" data-member-notifications-close><i data-lucide="x"></i><span data-i18n="actions.close">Fermer</span></button>
           </div>
           <div class="notifications-list" id="memberNotifications"></div>
+        </section>
+        <section class="notifications-panel" id="memberVisitsPanel" hidden>
+          <div class="dashboard-toolbar">
+            <h3>Mes visites</h3>
+            <button class="ghost-btn panel-btn" type="button" data-member-visits-close><i data-lucide="x"></i><span data-i18n="actions.close">Fermer</span></button>
+          </div>
+          <div class="notifications-list" id="memberVisits"></div>
+        </section>
+        <section class="notifications-panel" id="memberReservationsPanel" hidden>
+          <div class="dashboard-toolbar">
+            <h3>Réservations</h3>
+            <button class="ghost-btn panel-btn" type="button" data-member-reservations-close><i data-lucide="x"></i><span data-i18n="actions.close">Fermer</span></button>
+          </div>
+          <div class="notifications-list" id="memberReservations"></div>
         </section>
       </section>
       <section class="member-profile-panel" id="memberProfilePanel" hidden aria-labelledby="memberProfileTitle">
@@ -326,26 +343,6 @@
       </form>
     </dialog>
 
-    <dialog class="modal map-modal" id="mapModal">
-      <section class="modal-panel">
-        <div class="modal-head">
-          <div>
-            <h2 data-i18n="map.title">Localisation</h2>
-            <p id="mapTitle"></p>
-          </div>
-          <button class="icon-btn" type="button" data-map-close><i data-lucide="x"></i></button>
-        </div>
-        <iframe id="mapFrame" class="map-frame" title="Google Maps" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-        <div class="modal-actions">
-          <span></span>
-          <a class="primary-btn map-link" id="mapExternalLink" href="#" target="_blank" rel="noreferrer">
-            <span data-i18n="map.openExternal">Ouvrir dans Google Maps</span>
-            <i data-lucide="external-link"></i>
-          </a>
-        </div>
-      </section>
-    </dialog>
-
     <dialog class="modal detail-modal" id="detailModal">
       <section class="modal-panel">
         <div class="modal-head">
@@ -357,6 +354,48 @@
         </div>
         <div id="detailContent"></div>
       </section>
+    </dialog>
+
+    <dialog class="modal" id="visitModal">
+      <form class="modal-panel small" id="visitForm">
+        <div class="modal-head">
+          <div>
+            <h2>Demander une visite</h2>
+            <p id="visitListingTitle"></p>
+          </div>
+          <button class="icon-btn" type="button" data-visit-close><i data-lucide="x"></i></button>
+        </div>
+        <div class="form-grid">
+          <label><span>Date</span><input name="visitDate" type="date" required></label>
+          <label><span>Heure</span><input name="visitTime" type="time" required></label>
+        </div>
+        <p class="modal-note">L’agent de l’arrondissement devra confirmer sous 2h. Le numéro de l’agent sera affiché après paiement du droit de visite.</p>
+        <div class="modal-actions">
+          <span id="visitStatus"></span>
+          <button class="primary-btn" type="submit">Envoyer la demande</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="reservationModal">
+      <form class="modal-panel small" id="reservationForm">
+        <div class="modal-head">
+          <div>
+            <h2>Réserver cette maison</h2>
+            <p id="reservationListingTitle"></p>
+          </div>
+          <button class="icon-btn" type="button" data-reservation-close><i data-lucide="x"></i></button>
+        </div>
+        <div class="form-grid">
+          <label><span>Début de réservation</span><input name="reservationStartDate" type="date" required></label>
+          <label><span>Fin de réservation</span><input name="reservationEndDate" type="date" required></label>
+        </div>
+        <p class="modal-note">La période ne peut pas dépasser 7 jours. Si le paiement n’est pas fait avant la fin de cette période, la réservation sera annulée automatiquement. Après paiement, la réservation est actée et le montant n’est pas remboursé si le client ne se manifeste pas.</p>
+        <div class="modal-actions">
+          <span id="reservationStatus"></span>
+          <button class="primary-btn" type="submit">Envoyer la demande</button>
+        </div>
+      </form>
     </dialog>
 
     <aside class="chat-drawer" id="chatDrawer" hidden aria-labelledby="chatTitle">

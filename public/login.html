@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Connexion MaisonMada</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <script>
+      if (localStorage.getItem('maisonMadaTheme') === 'dark') {
+        document.documentElement.classList.add('dark-mode');
+      }
+    </script>
+    <link rel="stylesheet" href="/login.css">
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+    <script src="/login.js" defer></script>
+  </head>
+  <body>
+    <main class="login-shell">
+      <section class="login-panel">
+        <div class="login-top">
+          <a class="brand" href="/"><i data-lucide="home"></i><span>Maison<span>Mada</span></span></a>
+          <button class="theme-btn" type="button" id="themeToggle" aria-label="Changer de thème"><i data-lucide="moon"></i></button>
+        </div>
+        <div>
+          <p class="eyebrow" id="authEyebrow">Connexion</p>
+          <h1 id="authHeading">Connectez-vous</h1>
+          <p class="muted register-copy" hidden>Créez votre compte utilisateur pour publier ou demander une visite.</p>
+        </div>
+        <div class="mode-tabs">
+          <button class="active" type="button" data-mode="login">Connexion</button>
+          <button type="button" data-mode="register">Créer un compte</button>
+        </div>
+        <form id="authForm">
+          <label class="register-only" hidden>Nom<input name="name" disabled></label>
+          <label>Email<input name="email" type="email" required></label>
+          <label class="register-only" hidden>Téléphone<input name="phone" disabled></label>
+          <label class="register-only" hidden>Type de compte<select name="accountType" disabled><option value="particulier">Particulier</option><option value="agence">Agence immobilière</option></select></label>
+          <label>Mot de passe<input name="password" type="password" minlength="6" required></label>
+          <div class="form-actions">
+            <span id="authStatus"></span>
+            <button type="submit" id="authSubmit">Se connecter</button>
+          </div>
+          <button class="switch-link" type="button" data-switch-mode="register">Créer un compte utilisateur</button>
+          <button class="switch-link" type="button" data-switch-mode="login" hidden>J’ai déjà un compte</button>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>

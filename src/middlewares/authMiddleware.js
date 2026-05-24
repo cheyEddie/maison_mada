@@ -27,4 +27,13 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-module.exports = { requireAdmin, requireAuth };
+function requireAgent(req, res, next) {
+  if (!req.user || req.user.role !== 'agent') {
+    res.status(403).json({ message: 'Acces agent requis' });
+    return;
+  }
+
+  next();
+}
+
+module.exports = { requireAdmin, requireAgent, requireAuth };

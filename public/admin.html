@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>MaisonMada Admin</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <script>
       if (localStorage.getItem('maisonMadaAdminTheme') === 'dark') {
         document.documentElement.classList.add('dark-mode');
@@ -13,6 +14,7 @@
     <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+    <script src="/socket.io/socket.io.js" defer></script>
     <script src="/admin.js" defer></script>
   </head>
   <body>
@@ -30,6 +32,7 @@
         <div class="side-card">
           <span>Support client</span>
           <strong id="adminSupportCount">0 conversations</strong>
+          <button type="button" id="agentOpen"><i data-lucide="user-plus"></i><span>Créer agent</span></button>
           <button type="button" id="broadcastOpen"><i data-lucide="send"></i><span>Message global</span></button>
         </div>
       </aside>
@@ -45,6 +48,42 @@
               <i data-lucide="search"></i>
               <input id="adminSearch" type="search" placeholder="Rechercher une annonce, un quartier, un user...">
             </label>
+            <div class="admin-popover-wrap">
+              <button class="avatar-btn admin-top-icon" type="button" id="adminMessageOpen" title="Messages support" aria-label="Messages support" data-tooltip="Messages support"><i data-lucide="messages-square"></i></button>
+              <section class="admin-popover admin-support-popover" id="adminMessagePanel" hidden>
+                <div class="admin-popover-head">
+                  <div>
+                    <span class="eyebrow">Support client</span>
+                    <h2>Messages entrants</h2>
+                  </div>
+                  <button class="icon-btn" type="button" id="adminMessageClose" aria-label="Fermer"><i data-lucide="x"></i></button>
+                </div>
+                <div class="support-popover-grid">
+                  <div class="support-conversation-list" id="supportConversationList"></div>
+                  <div class="support-thread">
+                    <div class="support-thread-head" id="supportThreadTitle">Choisissez une conversation</div>
+                    <div class="support-message-list" id="supportMessageList"></div>
+                    <form class="support-reply-form" id="supportReplyForm">
+                      <textarea name="message" rows="2" placeholder="Répondre au client..." required></textarea>
+                      <button type="submit"><i data-lucide="send"></i></button>
+                    </form>
+                  </div>
+                </div>
+              </section>
+            </div>
+            <div class="admin-popover-wrap">
+              <button class="avatar-btn admin-top-icon" type="button" id="adminNotificationsOpen" title="Notifications" aria-label="Notifications" data-tooltip="Notifications"><i data-lucide="bell"></i></button>
+              <section class="admin-popover admin-notifications-popover" id="adminNotificationsPanel" hidden>
+                <div class="admin-popover-head">
+                  <div>
+                    <span class="eyebrow">Notifications</span>
+                    <h2>À traiter</h2>
+                  </div>
+                  <button class="icon-btn" type="button" id="adminNotificationsClose" aria-label="Fermer"><i data-lucide="x"></i></button>
+                </div>
+                <div class="notification-list compact" id="adminNotificationsQuick"></div>
+              </section>
+            </div>
             <button class="avatar-btn" type="button" id="themeToggle" title="Mode sombre" aria-label="Changer de thème" data-tooltip="Changer de thème"><i data-lucide="moon"></i></button>
             <button class="avatar-btn" type="button" id="logoutButton" title="Déconnexion" aria-label="Déconnexion" data-tooltip="Déconnexion"><i data-lucide="log-out"></i></button>
           </div>
@@ -63,9 +102,20 @@
         </section>
 
         <section class="content-grid" id="adminContent">
-          <section class="kpi-grid" id="kpiGrid"></section>
+          <section class="kpi-grid" id="kpiGrid" data-panel="overview"></section>
 
-          <section class="analytics-panel">
+          <section class="notifications-panel wide" data-panel="alerts" hidden>
+            <div class="panel-head">
+              <div>
+                <span class="eyebrow">Notifications</span>
+                <h2>À traiter maintenant</h2>
+              </div>
+              <span class="period-pill" id="adminNotificationsCount">0 alerte</span>
+            </div>
+            <div class="notification-list" id="adminNotifications"></div>
+          </section>
+
+          <section class="analytics-panel" data-panel="overview">
             <div class="panel-head">
               <div>
                 <span class="eyebrow">Performance</span>
@@ -76,7 +126,7 @@
             <div class="chart-wrap"><canvas id="portfolioChart"></canvas></div>
           </section>
 
-          <section class="insights-panel">
+          <section class="insights-panel" data-panel="overview">
             <div class="panel-head">
               <div>
                 <span class="eyebrow">Répartition</span>
@@ -87,7 +137,7 @@
             <div class="mini-list" id="statusLegend"></div>
           </section>
 
-          <section class="table-panel wide" data-panel="overview">
+          <section class="table-panel wide" data-panel="recent" hidden>
             <div class="panel-head">
               <div>
                 <span class="eyebrow">À traiter</span>
@@ -145,7 +195,7 @@
         <div class="form-grid">
           <label>Titre<input name="title" required></label>
           <label>Ville / quartier<input name="location" required></label>
-          <label class="wide">Lien Google Maps<input name="mapUrl" type="url" placeholder="https://maps.app.goo.gl/..."></label>
+          <label class="wide">Lien Google Maps précis<input name="mapUrl" type="url" placeholder="https://maps.app.goo.gl/..."></label>
           <label>Annonce<select name="dealType"><option value="location">Location</option><option value="vente">Vente</option></select></label>
           <label>Bien<select name="propertyType"><option value="maison">Maison</option><option value="appartement">Appartement</option><option value="terrain">Terrain</option><option value="local_commercial">Local commercial</option></select></label>
           <label>Prix Ariary<input name="price" required type="number" min="0"></label>
@@ -171,6 +221,32 @@
       </form>
     </dialog>
 
+    <dialog class="modal" id="listingDetailModal">
+      <section class="modal-panel">
+        <div class="modal-head">
+          <div>
+            <span class="eyebrow" id="listingDetailMeta">Publication</span>
+            <h2 id="listingDetailTitle">Détail publication</h2>
+          </div>
+          <button class="icon-btn" type="button" data-close-modal="listingDetailModal" title="Fermer" aria-label="Fermer" data-tooltip="Fermer"><i data-lucide="x"></i></button>
+        </div>
+        <div id="listingDetailContent"></div>
+      </section>
+    </dialog>
+
+    <dialog class="modal" id="userProfileModal">
+      <section class="modal-panel">
+        <div class="modal-head">
+          <div>
+            <span class="eyebrow" id="userProfileMeta">Compte</span>
+            <h2 id="userProfileTitle">Profil utilisateur</h2>
+          </div>
+          <button class="icon-btn" type="button" data-close-modal="userProfileModal" title="Fermer" aria-label="Fermer" data-tooltip="Fermer"><i data-lucide="x"></i></button>
+        </div>
+        <div id="userProfileContent"></div>
+      </section>
+    </dialog>
+
     <dialog class="modal" id="messageModal">
       <form class="modal-panel small" id="messageForm">
         <div class="modal-head">
@@ -184,6 +260,36 @@
         <div class="modal-actions">
           <span id="messageFormStatus"></span>
           <button type="submit">Envoyer</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="modal" id="agentModal">
+      <form class="modal-panel small" id="agentForm">
+        <div class="modal-head">
+          <div>
+            <span class="eyebrow">Agent</span>
+            <h2>Créer un compte agent</h2>
+          </div>
+          <button class="icon-btn" type="button" data-close-modal="agentModal" title="Fermer" aria-label="Fermer" data-tooltip="Fermer"><i data-lucide="x"></i></button>
+        </div>
+        <div class="form-grid">
+          <label>Nom<input name="name" required></label>
+          <label>Email<input name="email" type="email" required></label>
+          <label>Téléphone<input name="phone" required></label>
+          <label>Mot de passe<input name="password" type="password" minlength="6" required></label>
+          <label class="wide">Arrondissement<select name="agentArrondissement" required>
+            <option value="1">1er arrondissement</option>
+            <option value="2">2e arrondissement</option>
+            <option value="3">3e arrondissement</option>
+            <option value="4">4e arrondissement</option>
+            <option value="5">5e arrondissement</option>
+            <option value="6">6e arrondissement</option>
+          </select></label>
+        </div>
+        <div class="modal-actions">
+          <span id="agentFormStatus"></span>
+          <button type="submit">Créer l’agent</button>
         </div>
       </form>
     </dialog>

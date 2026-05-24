@@ -10,6 +10,10 @@ const state = {
   search: '',
   editingListingId: '',
   messageTarget: 'all',
+  supportConversations: [],
+  supportMessages: [],
+  activeSupportConversationId: '',
+  socket: null,
   charts: {}
 };
 
@@ -22,6 +26,19 @@ const els = {
   adminSearch: document.querySelector('#adminSearch'),
   pageTitle: document.querySelector('#pageTitle'),
   kpiGrid: document.querySelector('#kpiGrid'),
+  adminNotifications: document.querySelector('#adminNotifications'),
+  adminNotificationsCount: document.querySelector('#adminNotificationsCount'),
+  adminNotificationsOpen: document.querySelector('#adminNotificationsOpen'),
+  adminNotificationsClose: document.querySelector('#adminNotificationsClose'),
+  adminNotificationsPanel: document.querySelector('#adminNotificationsPanel'),
+  adminNotificationsQuick: document.querySelector('#adminNotificationsQuick'),
+  adminMessageOpen: document.querySelector('#adminMessageOpen'),
+  adminMessageClose: document.querySelector('#adminMessageClose'),
+  adminMessagePanel: document.querySelector('#adminMessagePanel'),
+  supportConversationList: document.querySelector('#supportConversationList'),
+  supportThreadTitle: document.querySelector('#supportThreadTitle'),
+  supportMessageList: document.querySelector('#supportMessageList'),
+  supportReplyForm: document.querySelector('#supportReplyForm'),
   recentListingsTable: document.querySelector('#recentListingsTable'),
   listingsTable: document.querySelector('#listingsTable'),
   usersTable: document.querySelector('#usersTable'),
@@ -31,6 +48,14 @@ const els = {
   listingModal: document.querySelector('#listingModal'),
   listingForm: document.querySelector('#listingForm'),
   listingFormStatus: document.querySelector('#listingFormStatus'),
+  listingDetailModal: document.querySelector('#listingDetailModal'),
+  listingDetailMeta: document.querySelector('#listingDetailMeta'),
+  listingDetailTitle: document.querySelector('#listingDetailTitle'),
+  listingDetailContent: document.querySelector('#listingDetailContent'),
+  userProfileModal: document.querySelector('#userProfileModal'),
+  userProfileMeta: document.querySelector('#userProfileMeta'),
+  userProfileTitle: document.querySelector('#userProfileTitle'),
+  userProfileContent: document.querySelector('#userProfileContent'),
   messageModal: document.querySelector('#messageModal'),
   messageForm: document.querySelector('#messageForm'),
   messageTarget: document.querySelector('#messageTarget'),
@@ -39,6 +64,10 @@ const els = {
   activityUser: document.querySelector('#activityUser'),
   activityList: document.querySelector('#activityList'),
   broadcastOpen: document.querySelector('#broadcastOpen'),
+  agentOpen: document.querySelector('#agentOpen'),
+  agentModal: document.querySelector('#agentModal'),
+  agentForm: document.querySelector('#agentForm'),
+  agentFormStatus: document.querySelector('#agentFormStatus'),
   adminSupportCount: document.querySelector('#adminSupportCount'),
   toast: document.querySelector('#toast')
 };
@@ -158,6 +187,34 @@ function activityLabel(activity) {
 
 function primaryImage(listing) {
   return Array.isArray(listing.images) && listing.images.length ? listing.images[0] : listing.image;
+}
+
+function listingImages(listing) {
+  return Array.isArray(listing.images) && listing.images.length ? listing.images : [listing.image].filter(Boolean);
+}
+
+function listingMapUrl(listing) {
+  return listing.mapResolvedUrl || listing.mapUrl || '';
+}
+
+function listingMapEmbedUrl(listing) {
+  if (listing.mapEmbedUrl) return listing.mapEmbedUrl;
+  const lat = Number(listing.mapCoordinates?.lat);
+  const lng = Number(listing.mapCoordinates?.lng);
+  return Number.isFinite(lat) && Number.isFinite(lng)
+    ? `https://www.google.com/maps?q=${lat},${lng}&z=18&output=embed`
+    : '';
+}
+
+function verificationStatusLabel(user) {
+  if (user.role === 'admin' || user.identityVerified === true) return 'Vérifié';
+  const status = user.identityVerification?.status || 'none';
+  return status === 'pending' ? 'Vérification demandée' : status === 'rejected' ? 'Vérification refusée' : 'Non vérifié';
+}
+
+function verificationStatusClass(user) {
+  if (user.role === 'admin' || user.identityVerified === true) return 'approved';
+  return user.identityVerification?.status === 'pending' ? 'pending' : 'rejected';
 }
 
 function isCommercialPremises() {
@@ -312,7 +369,7 @@ function listingRows(listings) {
       <thead><tr><th>Publication</th><th>Statut</th><th>Propriétaire</th><th>Localisation</th><th>Prix</th><th>Créée le</th><th>Actions</th></tr></thead>
       <tbody>
         ${listings.map((listing) => `
-          <tr>
+          <tr data-view-listing="${listing._id}">
             <td>
               <div class="listing-cell">
                 <img src="${escapeHtml(primaryImage(listing))}" alt="">
@@ -350,7 +407,7 @@ function userRows(users) {
           const admin = user.role === 'admin';
           const verified = admin || user.identityVerified === true;
           return `
-            <tr>
+            <tr data-view-user="${user._id}">
               <td><div class="user-cell"><strong>${escapeHtml(user.name || user.email)}</strong><span>${escapeHtml(user.email)} · ${escapeHtml(user.reference || '-')}</span></div></td>
               <td><span class="status-pill ${admin ? 'approved' : 'pending'}">${admin ? 'admin' : 'user'}</span></td>
               <td>${escapeHtml(user.phone || '-')}</td>
@@ -382,6 +439,125 @@ function renderTables() {
   els.usersTable.innerHTML = userRows(filteredUsers());
 }
 
+function renderNotifications() {
+  const pendingListings = state.listings.filter((listing) => listing.status === 'pending');
+  const pendingUsers = state.users.filter((user) => user.role !== 'admin' && user.identityVerification?.status === 'pending');
+  const items = [
+    ...pendingListings.map((listing) => ({
+      type: 'listing',
+      id: listing._id,
+      icon: 'building-2',
+      title: listing.title,
+      text: `${listing.location || '-'} · ${listing.ownerName || 'MaisonMada'}`,
+      date: listing.createdAt
+    })),
+    ...pendingUsers.map((user) => ({
+      type: 'user',
+      id: user._id,
+      icon: 'badge-check',
+      title: user.name || user.email,
+      text: `Demande de vérification · ${user.email}`,
+      date: user.identityVerification?.submittedAt || user.createdAt
+    }))
+  ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+  els.adminNotificationsCount.textContent = `${items.length} ${items.length > 1 ? 'alertes' : 'alerte'}`;
+  const markup = items.length
+    ? items.map((item) => `
+      <button class="notification-item" type="button" data-notification-${item.type}="${item.id}">
+        <span class="notification-icon"><i data-lucide="${item.icon}"></i></span>
+        <span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.text)}</small></span>
+        <em>${formatDateTime(item.date)}</em>
+      </button>
+    `).join('')
+    : '<div class="empty">Aucune publication ou vérification en attente.</div>';
+  els.adminNotifications.innerHTML = markup;
+  els.adminNotificationsQuick.innerHTML = markup;
+  els.adminNotificationsOpen.classList.toggle('has-alerts', items.length > 0);
+  els.adminNotificationsOpen.dataset.count = items.length ? String(items.length) : '';
+}
+
+function closeAdminPopovers() {
+  els.adminMessagePanel.hidden = true;
+  els.adminNotificationsPanel.hidden = true;
+  els.adminMessageOpen.setAttribute('aria-expanded', 'false');
+  els.adminNotificationsOpen.setAttribute('aria-expanded', 'false');
+}
+
+function supportClientName(conversation) {
+  const client = conversation.participants?.find((participant) => participant.role !== 'admin');
+  return client?.name || 'Client';
+}
+
+function isSupportUnread(conversation) {
+  if (conversation.lastSenderRole === 'admin') return false;
+  return Boolean(conversation.unread);
+}
+
+function renderSupportUnreadState() {
+  const unread = state.supportConversations.filter(isSupportUnread).length;
+  els.adminMessageOpen.classList.toggle('has-alerts', unread > 0);
+  els.adminMessageOpen.dataset.count = unread ? String(unread) : '';
+  els.adminSupportCount.textContent = `${state.supportConversations.length} conversation${state.supportConversations.length > 1 ? 's' : ''}`;
+}
+
+function renderSupportConversations() {
+  renderSupportUnreadState();
+  els.supportConversationList.innerHTML = state.supportConversations.length
+    ? state.supportConversations.map((conversation) => `
+      <button class="support-conversation ${String(conversation._id) === String(state.activeSupportConversationId) ? 'active' : ''} ${isSupportUnread(conversation) ? 'unread' : ''}" type="button" data-support-conversation="${conversation._id}">
+        <strong>${escapeHtml(supportClientName(conversation))}</strong>
+        <span>${escapeHtml(conversation.lastMessage || 'Nouvelle conversation support')}</span>
+      </button>
+    `).join('')
+    : '<div class="empty">Aucun message support.</div>';
+}
+
+function renderSupportMessages() {
+  els.supportMessageList.innerHTML = state.supportMessages.length
+    ? state.supportMessages.map((message) => `
+      <div class="support-message ${message.senderRole === 'admin' ? 'mine' : ''}">
+        <span>${escapeHtml(message.senderName || '')}</span>
+        <p>${escapeHtml(message.body || '')}</p>
+      </div>
+    `).join('')
+    : '<div class="empty">Choisissez une conversation.</div>';
+  els.supportMessageList.scrollTop = els.supportMessageList.scrollHeight;
+  icons();
+}
+
+function connectSupportSocket() {
+  if (state.socket || typeof io === 'undefined' || !state.token) return;
+  state.socket = io({ auth: { token: state.token } });
+  state.socket.on('chat:message', (message) => {
+    loadSupportConversations().catch(() => {});
+    if (String(message.conversationId) === String(state.activeSupportConversationId)) {
+      if (!state.supportMessages.some((item) => String(item._id) === String(message._id))) {
+        state.supportMessages.push(message);
+      }
+      renderSupportMessages();
+    }
+  });
+}
+
+async function loadSupportConversations() {
+  if (!state.token) return;
+  const conversations = await api('/api/chat/conversations', { headers: headers() });
+  state.supportConversations = conversations.filter((conversation) => conversation.type === 'support');
+  renderSupportConversations();
+}
+
+async function openSupportConversation(conversation) {
+  state.activeSupportConversationId = String(conversation._id);
+  els.supportThreadTitle.textContent = supportClientName(conversation);
+  state.supportMessages = await api(`/api/chat/conversations/${conversation._id}/messages`, { headers: headers() });
+  conversation.unread = false;
+  renderSupportConversations();
+  renderSupportMessages();
+  connectSupportSocket();
+  state.socket?.emit('chat:join', { conversationId: conversation._id });
+}
+
 function renderPanels() {
   document.querySelectorAll('[data-panel]').forEach((panel) => {
     panel.hidden = panel.dataset.panel !== state.tab;
@@ -395,6 +571,7 @@ function renderPanels() {
 function render() {
   renderPanels();
   renderKpis();
+  renderNotifications();
   renderCharts();
   renderTables();
   els.adminSupportCount.textContent = `${state.users.filter((user) => user.role !== 'admin').length} clients`;
@@ -409,27 +586,30 @@ async function loadAdminData() {
   state.listings = listings;
   state.users = users;
   render();
+  await loadSupportConversations().catch(() => {});
 }
 
 async function hydrate() {
   if (!state.token) {
-    els.authBlock.hidden = false;
-    els.adminContent.hidden = true;
+    window.location.replace('/login.html');
     return;
   }
 
   try {
     state.user = await api('/api/auth/me', { headers: headers() });
+    if (state.user.role === 'agent') {
+      window.location.replace('/agent.html');
+      return;
+    }
     if (state.user.role !== 'admin') throw new Error('Accès administrateur requis');
     els.authBlock.hidden = true;
     els.adminContent.hidden = false;
+    connectSupportSocket();
     await loadAdminData();
   } catch (error) {
     localStorage.removeItem('maisonMadaToken');
     state.token = '';
-    els.authBlock.hidden = false;
-    els.adminContent.hidden = true;
-    toast(error.message);
+    window.location.replace('/login.html');
   }
 }
 
@@ -438,7 +618,7 @@ function openListingEditor(listing) {
   const form = els.listingForm;
   form.elements.title.value = listing.title || '';
   form.elements.location.value = listing.location || '';
-  form.elements.mapUrl.value = listing.mapUrl || '';
+  form.elements.mapUrl.value = listing.mapUrl || listing.mapResolvedUrl || '';
   form.elements.dealType.value = listing.dealType || 'location';
   form.elements.propertyType.value = listing.propertyType || 'maison';
   form.elements.price.value = listing.price || 0;
@@ -457,6 +637,110 @@ function openListingEditor(listing) {
   els.listingFormStatus.textContent = '';
   applyListingFormRules();
   els.listingModal.showModal();
+}
+
+function openListingDetail(listing) {
+  if (!listing) return;
+  const images = listingImages(listing);
+  els.listingDetailMeta.textContent = `${listing.reference || 'Publication'} · ${statusLabel(listing.status)}`;
+  els.listingDetailTitle.textContent = listing.title || 'Publication';
+  els.listingDetailContent.innerHTML = `
+    <div class="detail-grid">
+      <div class="detail-gallery">
+        ${images.length ? `<img class="detail-main-image" data-admin-main-image src="${escapeHtml(images[0])}" alt="">` : '<div class="empty">Aucune image.</div>'}
+        ${images.length > 1 ? `<div class="detail-thumbs">${images.map((image, index) => `<button class="${index === 0 ? 'active' : ''}" type="button" data-admin-thumb="${escapeHtml(image)}"><img src="${escapeHtml(image)}" alt=""></button>`).join('')}</div>` : ''}
+      </div>
+      <div class="detail-info">
+        <div class="profile-grid">
+          <div><span>Statut</span><strong>${statusLabel(listing.status)}</strong></div>
+          <div><span>Type</span><strong>${propertyTypeLabel(listing.propertyType)}</strong></div>
+          <div><span>Annonce</span><strong>${listing.dealType === 'vente' ? 'Vente' : 'Location'}</strong></div>
+          <div><span>Prix</span><strong>${money(listing.price, listing.dealType)}</strong></div>
+          <div><span>Quartier</span><strong>${escapeHtml(listing.location || '-')}</strong></div>
+          <div><span>Arrondissement</span><strong>${escapeHtml(listing.arrondissement?.label || '-')}</strong></div>
+          <div><span>Auteur</span><strong>${escapeHtml(listing.ownerName || 'MaisonMada')}</strong></div>
+          <div><span>Créée le</span><strong>${formatDateTime(listing.createdAt)}</strong></div>
+        </div>
+        <section class="profile-section">
+          <h3>Description</h3>
+          <p>${escapeHtml(listing.description || 'Aucune description.')}</p>
+        </section>
+        <section class="profile-section">
+          <h3>Informations pratiques</h3>
+          <p>Chambres : ${Number(listing.bedrooms || 0)}</p>
+          <p>Surface : ${Number(listing.area || 0)} m²</p>
+          <p>Électricité : ${listing.hasElectricity ? 'Oui' : 'Non'}</p>
+          ${listing.propertyType === 'local_commercial' ? '' : `
+            <p>Eau : ${escapeHtml(listing.waterSource || '-')}</p>
+            <p>Douche : ${escapeHtml(listing.showerLocation || '-')}</p>
+            <p>WC : ${escapeHtml(listing.wcLocation || '-')}</p>
+          `}
+        </section>
+        <section class="profile-section">
+          <h3>Carte</h3>
+          ${listingMapEmbedUrl(listing)
+            ? `<iframe class="admin-map-frame" title="Google Maps" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${escapeHtml(listingMapEmbedUrl(listing))}"></iframe>`
+            : '<div class="empty">Aucune localisation Google Maps précise n’est enregistrée.</div>'
+          }
+        </section>
+        <div class="detail-actions">
+          <button class="action-btn primary" type="button" data-edit-listing="${listing._id}"><i data-lucide="pencil"></i> Modifier</button>
+          ${listingMapUrl(listing) ? `<a class="action-link" href="${escapeHtml(listingMapUrl(listing))}" target="_blank" rel="noreferrer"><i data-lucide="map-pin"></i> Ouvrir Maps</a>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+  els.listingDetailModal.showModal();
+  icons();
+}
+
+function openUserProfile(user) {
+  if (!user) return;
+  const admin = user.role === 'admin';
+  const verification = user.identityVerification || {};
+  const documents = verification.documents || [];
+  const listings = state.listings.filter((listing) => String(listing.ownerId) === String(user._id));
+  els.userProfileMeta.textContent = `${user.reference || 'Compte'} · ${admin ? 'Admin' : 'Utilisateur'}`;
+  els.userProfileTitle.textContent = user.name || user.email || 'Utilisateur';
+  els.userProfileContent.innerHTML = `
+    <div class="profile-grid">
+      <div><span>Email</span><strong>${escapeHtml(user.email || '-')}</strong></div>
+      <div><span>Téléphone</span><strong>${escapeHtml(user.phone || '-')}</strong></div>
+      <div><span>Rôle</span><strong>${admin ? 'Admin' : 'User'}</strong></div>
+      <div><span>Type de compte</span><strong>${user.accountType === 'agence' ? 'Agence' : 'Particulier'}</strong></div>
+      <div><span>Statut identité</span><strong>${verificationStatusLabel(user)}</strong></div>
+      <div><span>Créé le</span><strong>${formatDateTime(user.createdAt)}</strong></div>
+      <div><span>Publications</span><strong>${listings.length}</strong></div>
+    </div>
+    <section class="profile-section">
+      <h3>Vérification de compte</h3>
+      <p>Nom envoyé : ${escapeHtml(verification.fullName || '-')}</p>
+      <p>Type de document : ${escapeHtml(verification.documentType || '-')}</p>
+      <p>Message : ${escapeHtml(verification.note || '-')}</p>
+      <p>Envoyé le : ${formatDateTime(verification.submittedAt)}</p>
+      <div class="document-list">
+        ${documents.length ? documents.map((document) => `
+          <a href="${escapeHtml(document.url)}" target="_blank" rel="noreferrer">
+            <i data-lucide="paperclip"></i>
+            <span>${escapeHtml(document.name || document.url)}</span>
+          </a>
+        `).join('') : '<span class="muted-line">Aucun document envoyé.</span>'}
+      </div>
+    </section>
+    <section class="profile-section">
+      <h3>Publications du compte</h3>
+      <div class="profile-list">
+        ${listings.length ? listings.map((listing) => `
+          <button type="button" data-profile-listing="${listing._id}">
+            <strong>${escapeHtml(listing.title)}</strong>
+            <span>${statusLabel(listing.status)} · ${money(listing.price, listing.dealType)}</span>
+          </button>
+        `).join('') : '<div class="empty">Aucune publication.</div>'}
+      </div>
+    </section>
+  `;
+  els.userProfileModal.showModal();
+  icons();
 }
 
 async function moderateListing(id, status) {
@@ -488,7 +772,14 @@ async function handleListingAction(event) {
   const approve = event.target.closest('[data-approve]');
   const reject = event.target.closest('[data-reject]');
   const remove = event.target.closest('[data-delete-listing]');
-  if (!edit && !featured && !approve && !reject && !remove) return;
+  const detailRow = event.target.closest('[data-view-listing]');
+  if (!edit && !featured && !approve && !reject && !remove) {
+    if (detailRow && !event.target.closest('button, a, input, select, textarea')) {
+      const listing = state.listings.find((item) => String(item._id) === String(detailRow.dataset.viewListing));
+      openListingDetail(listing);
+    }
+    return;
+  }
 
   try {
     if (edit) {
@@ -523,7 +814,14 @@ async function handleUserAction(event) {
   const account = event.target.closest('[data-account]');
   const verify = event.target.closest('[data-verify]');
   const remove = event.target.closest('[data-delete-user]');
-  if (!message && !activity && !account && !verify && !remove) return;
+  const profileRow = event.target.closest('[data-view-user]');
+  if (!message && !activity && !account && !verify && !remove) {
+    if (profileRow && !event.target.closest('button, a, input, select, textarea')) {
+      const user = state.users.find((item) => String(item._id) === String(profileRow.dataset.viewUser));
+      openUserProfile(user);
+    }
+    return;
+  }
 
   try {
     if (message) {
@@ -577,20 +875,7 @@ async function handleUserAction(event) {
 
 els.loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
-  try {
-    const session = await api('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(Object.fromEntries(new FormData(els.loginForm)))
-    });
-    if (session.user.role !== 'admin') throw new Error('Ce compte n’est pas administrateur');
-    state.token = session.token;
-    state.user = session.user;
-    localStorage.setItem('maisonMadaToken', session.token);
-    await hydrate();
-  } catch (error) {
-    toast(error.message);
-  }
+  window.location.replace('/login.html');
 });
 
 els.logoutButton.addEventListener('click', async () => {
@@ -648,6 +933,52 @@ els.themeToggle.addEventListener('click', () => {
 document.addEventListener('click', (event) => {
   const close = event.target.closest('[data-close-modal]');
   if (close) document.querySelector(`#${close.dataset.closeModal}`)?.close();
+
+  const adminThumb = event.target.closest('[data-admin-thumb]');
+  if (adminThumb) {
+    const mainImage = adminThumb.closest('.detail-gallery')?.querySelector('[data-admin-main-image]');
+    if (mainImage) mainImage.src = adminThumb.dataset.adminThumb;
+    adminThumb.closest('.detail-thumbs')?.querySelectorAll('[data-admin-thumb]').forEach((button) => {
+      button.classList.toggle('active', button === adminThumb);
+    });
+    return;
+  }
+
+  const detailEdit = event.target.closest('#listingDetailModal [data-edit-listing]');
+  if (detailEdit) {
+    const listing = state.listings.find((item) => String(item._id) === String(detailEdit.dataset.editListing));
+    els.listingDetailModal.close();
+    openListingEditor(listing);
+    return;
+  }
+
+  const notificationListing = event.target.closest('[data-notification-listing]');
+  if (notificationListing) {
+    const listing = state.listings.find((item) => String(item._id) === String(notificationListing.dataset.notificationListing));
+    openListingDetail(listing);
+    return;
+  }
+
+  const notificationUser = event.target.closest('[data-notification-user]');
+  if (notificationUser) {
+    const user = state.users.find((item) => String(item._id) === String(notificationUser.dataset.notificationUser));
+    openUserProfile(user);
+    return;
+  }
+
+  const profileListing = event.target.closest('[data-profile-listing]');
+  if (profileListing) {
+    const listing = state.listings.find((item) => String(item._id) === String(profileListing.dataset.profileListing));
+    els.userProfileModal.close();
+    openListingDetail(listing);
+    return;
+  }
+});
+
+document.querySelectorAll('dialog.modal').forEach((modal) => {
+  modal.addEventListener('pointerdown', (event) => {
+    if (event.target === modal) modal.close();
+  });
 });
 
 els.recentListingsTable.addEventListener('click', handleListingAction);
@@ -682,6 +1013,60 @@ els.broadcastOpen.addEventListener('click', () => {
   els.messageModal.showModal();
 });
 
+els.agentOpen.addEventListener('click', () => {
+  els.agentForm.reset();
+  els.agentFormStatus.textContent = '';
+  els.agentModal.showModal();
+});
+
+els.agentForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  els.agentFormStatus.textContent = 'Création...';
+  try {
+    await api('/api/admin/agents', {
+      method: 'POST',
+      headers: headers(true),
+      body: JSON.stringify(Object.fromEntries(new FormData(els.agentForm)))
+    });
+    els.agentModal.close();
+    toast('Compte agent créé');
+    await loadAdminData();
+  } catch (error) {
+    els.agentFormStatus.textContent = error.message;
+  }
+});
+
+els.adminMessageOpen.addEventListener('click', (event) => {
+  event.stopPropagation();
+  const nextOpen = els.adminMessagePanel.hidden;
+  closeAdminPopovers();
+  els.adminMessagePanel.hidden = !nextOpen;
+  els.adminMessageOpen.setAttribute('aria-expanded', String(nextOpen));
+  if (nextOpen) {
+    els.supportConversationList.innerHTML = '<div class="empty">Chargement...</div>';
+    loadSupportConversations().catch((error) => toast(error.message));
+  }
+});
+
+els.adminMessageClose.addEventListener('click', closeAdminPopovers);
+
+els.adminNotificationsOpen.addEventListener('click', (event) => {
+  event.stopPropagation();
+  const nextOpen = els.adminNotificationsPanel.hidden;
+  closeAdminPopovers();
+  els.adminNotificationsPanel.hidden = !nextOpen;
+  els.adminNotificationsOpen.setAttribute('aria-expanded', String(nextOpen));
+});
+
+els.adminNotificationsClose.addEventListener('click', closeAdminPopovers);
+
+els.supportConversationList.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-support-conversation]');
+  if (!button) return;
+  const conversation = state.supportConversations.find((item) => String(item._id) === String(button.dataset.supportConversation));
+  if (conversation) openSupportConversation(conversation).catch((error) => toast(error.message));
+});
+
 els.messageForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const message = els.messageForm.elements.message.value.trim();
@@ -701,6 +1086,37 @@ els.messageForm.addEventListener('submit', async (event) => {
   } catch (error) {
     els.messageFormStatus.textContent = error.message;
   }
+});
+
+els.supportReplyForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const body = els.supportReplyForm.elements.message.value.trim();
+  if (!body || !state.activeSupportConversationId) return;
+  connectSupportSocket();
+  state.socket?.emit('chat:message', { conversationId: state.activeSupportConversationId, body }, (response) => {
+    if (!response?.ok) {
+      toast(response?.message || 'Message non envoyé');
+      return;
+    }
+    els.supportReplyForm.reset();
+    if (response.message && !state.supportMessages.some((item) => String(item._id) === String(response.message._id))) {
+      state.supportMessages.push(response.message);
+      renderSupportMessages();
+    }
+    loadSupportConversations().catch(() => {});
+  });
+});
+
+els.supportReplyForm.elements.message.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    els.supportReplyForm.requestSubmit();
+  }
+});
+
+document.addEventListener('pointerdown', (event) => {
+  if (event.target.closest('.admin-popover-wrap')) return;
+  closeAdminPopovers();
 });
 
 applyTheme(state.theme);

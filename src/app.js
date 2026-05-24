@@ -6,7 +6,9 @@ const adminRoutes = require('./routes/adminRoutes');
 const authRoutes = require('./routes/authRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const listingRoutes = require('./routes/listingRoutes');
+const reservationRoutes = require('./routes/reservationRoutes');
 const statsRoutes = require('./routes/statsRoutes');
+const visitRoutes = require('./routes/visitRoutes');
 const { errorHandler } = require('./middlewares/errorHandler');
 
 function createApp() {
@@ -21,7 +23,9 @@ function createApp() {
   app.use('/api/auth', authRoutes);
   app.use('/api/chat', chatRoutes);
   app.use('/api/listings', listingRoutes);
+  app.use('/api/reservations', reservationRoutes);
   app.use('/api/stats', statsRoutes);
+  app.use('/api/visits', visitRoutes);
 
   app.use(errorHandler);
 

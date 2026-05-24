@@ -2,7 +2,6 @@ const seedListings = [
   {
     title: 'Maison moderne avec jardin',
     location: 'Analakely, Antananarivo',
-    mapUrl: 'https://www.google.com/maps/search/?api=1&query=Analakely%2C%20Antananarivo%2C%20Madagascar',
     dealType: 'location',
     propertyType: 'maison',
     price: 800000,
@@ -20,7 +19,6 @@ const seedListings = [
   {
     title: 'Villa familiale',
     location: 'Ivandry, Antananarivo',
-    mapUrl: 'https://www.google.com/maps/search/?api=1&query=Ivandry%2C%20Antananarivo%2C%20Madagascar',
     dealType: 'vente',
     propertyType: 'maison',
     price: 250000000,
@@ -38,7 +36,6 @@ const seedListings = [
   {
     title: 'Appartement lumineux',
     location: 'Ankadifotsy, Antananarivo',
-    mapUrl: 'https://www.google.com/maps/search/?api=1&query=Ankadifotsy%2C%20Antananarivo%2C%20Madagascar',
     dealType: 'location',
     propertyType: 'appartement',
     price: 1200000,
@@ -56,7 +53,6 @@ const seedListings = [
   {
     title: 'Terrain constructible',
     location: 'Ambohidratrimo',
-    mapUrl: 'https://www.google.com/maps/search/?api=1&query=Ambohidratrimo%2C%20Madagascar',
     dealType: 'vente',
     propertyType: 'terrain',
     price: 160000000,

@@ -1,0 +1,185 @@
+:root {
+  --green: #08944a;
+  --ink: #101620;
+  --muted: #667085;
+  --line: #dce5ef;
+  --panel: #ffffff;
+  --page: #f4f7fb;
+  --field: #ffffff;
+  --soft: #eef3f8;
+  --danger: #b42318;
+  --shadow: 0 22px 70px rgba(16, 22, 32, 0.12);
+}
+
+:root.dark-mode,
+body.dark-mode {
+  color-scheme: dark;
+}
+
+:root.dark-mode {
+  --ink: #eef4f8;
+  --muted: #a7b2c0;
+  --line: #263241;
+  --panel: #121a24;
+  --page: #0a1018;
+  --field: #0f1722;
+  --soft: #1a2430;
+  --danger: #ffb4ab;
+  --shadow: 0 22px 70px rgba(0, 0, 0, 0.38);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Inter, system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--page);
+}
+
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.login-panel {
+  width: min(520px, 100%);
+  display: grid;
+  gap: 22px;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.login-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.brand span span,
+.eyebrow {
+  color: var(--green);
+}
+
+.eyebrow,
+.muted {
+  margin: 0;
+  font-weight: 800;
+}
+
+h1 {
+  margin: 6px 0;
+  font-size: clamp(1.7rem, 4vw, 2.35rem);
+  line-height: 1.05;
+}
+
+.muted {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--soft);
+}
+
+.mode-tabs button,
+.form-actions button,
+.theme-btn {
+  min-height: 42px;
+  border: 0;
+  border-radius: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.theme-btn {
+  width: 42px;
+  display: grid;
+  place-items: center;
+  background: var(--soft);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.mode-tabs button {
+  color: var(--muted);
+  background: transparent;
+}
+
+.mode-tabs button.active,
+.form-actions button {
+  color: #fff;
+  background: var(--green);
+}
+
+form,
+label {
+  display: grid;
+  gap: 12px;
+}
+
+label {
+  gap: 7px;
+  color: var(--muted);
+  font-weight: 900;
+}
+
+input,
+select {
+  height: 46px;
+  width: 100%;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--field);
+  color: var(--ink);
+}
+
+.form-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.switch-link {
+  width: max-content;
+  justify-self: center;
+  border: 0;
+  background: transparent;
+  color: var(--green);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+#authStatus {
+  min-height: 20px;
+  color: var(--danger);
+  font-weight: 800;
+}

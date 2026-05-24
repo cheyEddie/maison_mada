@@ -22,6 +22,7 @@ function publicUser(user) {
     identityVerified: user.role === 'admin' || user.identityVerified === true,
     identityVerification: user.identityVerification || { status: user.identityVerified ? 'approved' : 'none' },
     reference: user.reference || '',
+    agentArrondissement: user.agentArrondissement || null,
     createdAt: user.createdAt
   };
 }
@@ -45,6 +46,10 @@ function verifyPassword(password, storedHash) {
 
 function createUserReference() {
   return `MM-USR-${Math.floor(100000 + Math.random() * 900000)}`;
+}
+
+function createAgentReference() {
+  return `MM-AGT-${Math.floor(100000 + Math.random() * 900000)}`;
 }
 
 async function ensureUserIndexes() {
@@ -231,6 +236,11 @@ async function updateUserAsAdmin(id, body = {}) {
   if (nextAccountType) update.accountType = nextAccountType;
   if (body.identityVerified !== undefined) update.identityVerified = body.identityVerified === true;
   if (update.role === 'admin') update.identityVerified = true;
+  if (update.role === 'agent') update.identityVerified = true;
+  if (body.agentArrondissement !== undefined) {
+    const numero = Number(body.agentArrondissement);
+    update.agentArrondissement = Number.isFinite(numero) ? numero : null;
+  }
   if (body.identityVerified !== undefined) {
     update['identityVerification.status'] = body.identityVerified === true ? 'approved' : 'rejected';
     update['identityVerification.reviewedAt'] = new Date();
@@ -260,6 +270,51 @@ async function deleteUser(id) {
 
   await sessions().deleteMany({ userId });
   return users().deleteOne({ _id: userId });
+}
+
+async function createAgentAsAdmin(body = {}) {
+  if (!body.name || !body.email || !body.password || !body.phone || !body.agentArrondissement) {
+    const error = new Error('Nom, email, telephone, mot de passe et arrondissement sont obligatoires');
+    error.status = 400;
+    throw error;
+  }
+
+  const agent = {
+    name: String(body.name).trim(),
+    email: normalizeEmail(body.email),
+    phone: String(body.phone || '').trim(),
+    accountType: 'agent',
+    identityVerified: true,
+    reference: createAgentReference(),
+    passwordHash: hashPassword(body.password),
+    role: 'agent',
+    agentArrondissement: Number(body.agentArrondissement),
+    createdAt: new Date()
+  };
+
+  try {
+    while (await users().findOne({ reference: agent.reference })) {
+      agent.reference = createAgentReference();
+    }
+
+    const result = await users().insertOne(agent);
+    return publicUser({ ...agent, _id: result.insertedId });
+  } catch (error) {
+    if (error.code === 11000) {
+      error.status = 409;
+      error.message = 'Cet email est deja utilise';
+    }
+    throw error;
+  }
+}
+
+async function findAgentForArrondissement(arrondissement) {
+  const numero = Number(arrondissement?.numero || arrondissement);
+  if (!Number.isFinite(numero)) return null;
+  return users().findOne(
+    { role: 'agent', agentArrondissement: numero },
+    { projection: { passwordHash: 0 } }
+  );
 }
 
 async function logoutUser(token) {
@@ -304,12 +359,14 @@ async function submitIdentityVerification(userId, body = {}, files = []) {
 }
 
 module.exports = {
+  createAgentAsAdmin,
   deleteUser,
   ensureAdminUser,
   ensureUserIndexes,
   ensureUserReferences,
   ensureUserRoles,
   findUserByToken,
+  findAgentForArrondissement,
   listUsers,
   loginUser,
   logoutUser,
